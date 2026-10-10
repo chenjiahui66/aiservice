@@ -1,0 +1,318 @@
+/**
+ * 设计变量与基础样式。
+ * 目标：简洁现代、适合日常经营；浅色背景、清晰文字层级、克制的品牌色、足够留白。
+ * 待处理事项用克制的琥珀色提示，不用大面积高饱和红。
+ *
+ * designWidth = 750，下面所有 px 会按 1:1 转成 rpx。
+ */
+
+page {
+  /* 品牌色 */
+  --brand: #2b6cf0;
+  --brand-weak: #eaf1ff;
+  --brand-deep: #1f56c8;
+
+  /* 文字层级 */
+  --text-1: #1a1f29;
+  --text-2: #5b6472;
+  --text-3: #98a1ae;
+  --text-inverse: #ffffff;
+
+  /* 背景与描边 */
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --line: #ebedf1;
+  --line-strong: #dfe3e9;
+
+  /* 语义色（克制） */
+  --amber: #b7791f;
+  --amber-weak: #fdf4e3;
+  --green: #2f855a;
+  --green-weak: #e8f5ee;
+  --red: #c53030;
+  --red-weak: #fdecec;
+  --grey-weak: #f0f2f5;
+
+  /* 圆角与间距 */
+  --radius-lg: 24rpx;
+  --radius-md: 16rpx;
+  --radius-sm: 10rpx;
+
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 28rpx;
+  line-height: 1.55;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
+}
+
+view,
+text,
+scroll-view {
+  box-sizing: border-box;
+}
+
+/* ---------------- 布局 ---------------- */
+.page {
+  min-height: 100vh;
+  padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
+}
+
+.page--tabbed {
+  padding-bottom: 40rpx;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+.row--wrap {
+  flex-wrap: wrap;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------------- 卡片 ---------------- */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--line);
+}
+
+.card--flat {
+  border: none;
+  box-shadow: 0 2rpx 12rpx rgba(26, 31, 41, 0.04);
+}
+
+.card--tap {
+  transition: opacity 0.15s;
+}
+
+.card--tap:active {
+  opacity: 0.75;
+}
+
+/* ---------------- 文字 ---------------- */
+.title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.subtitle {
+  font-size: 26rpx;
+  color: var(--text-2);
+}
+
+.muted {
+  font-size: 24rpx;
+  color: var(--text-3);
+}
+
+.mono {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* ---------------- 区块标题 ---------------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 32rpx 4rpx 16rpx;
+}
+
+.section-head__title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.section-head__action {
+  font-size: 26rpx;
+  color: var(--brand);
+}
+
+/* ---------------- 按钮 ---------------- */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  padding: 0 32rpx;
+  border-radius: var(--radius-md);
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 1;
+  border: none;
+  background: var(--brand);
+  color: var(--text-inverse);
+  transition: opacity 0.15s;
+}
+
+.btn::after {
+  border: none;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--lg {
+  height: 96rpx;
+  font-size: 32rpx;
+}
+
+.btn--ghost {
+  background: var(--surface);
+  color: var(--brand);
+  border: 1rpx solid var(--brand-weak);
+}
+
+.btn--plain {
+  background: var(--grey-weak);
+  color: var(--text-2);
+}
+
+.btn--danger-ghost {
+  background: var(--surface);
+  color: var(--red);
+  border: 1rpx solid var(--red-weak);
+}
+
+.btn--disabled {
+  opacity: 0.45;
+}
+
+.btn-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.btn-row .btn {
+  flex: 1;
+}
+
+/* 纯文字操作 */
+.link {
+  font-size: 26rpx;
+  color: var(--brand);
+}
+
+/* ---------------- 标签 ---------------- */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  line-height: 1;
+  background: var(--grey-weak);
+  color: var(--text-2);
+}
+
+.tag--pending {
+  background: var(--amber-weak);
+  color: var(--amber);
+}
+
+.tag--confirmed,
+.tag--serving {
+  background: var(--brand-weak);
+  color: var(--brand);
+}
+
+.tag--completed {
+  background: var(--green-weak);
+  color: var(--green);
+}
+
+.tag--cancelled {
+  background: var(--grey-weak);
+  color: var(--text-3);
+}
+
+.tag--danger {
+  background: var(--red-weak);
+  color: var(--red);
+}
+
+/* ---------------- 提示条 ---------------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 20rpx 22rpx;
+  border-radius: var(--radius-md);
+  font-size: 25rpx;
+  line-height: 1.5;
+  background: var(--amber-weak);
+  color: var(--amber);
+}
+
+.notice--info {
+  background: var(--brand-weak);
+  color: var(--brand-deep);
+}
+
+.notice--danger {
+  background: var(--red-weak);
+  color: var(--red);
+}
+
+.notice__icon {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+/* ---------------- 分割线 ---------------- */
+.divider {
+  height: 1rpx;
+  background: var(--line);
+  margin: 24rpx 0;
+}
+
+/* ---------------- 底部固定操作条 ---------------- */
+.footer-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1rpx solid var(--line);
+  z-index: 20;
+}
+
+.footer-spacer {
+  height: 150rpx;
+}

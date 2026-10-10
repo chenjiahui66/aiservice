@@ -1,0 +1,321 @@
+/** 页面级样式（按页面前缀命名，避免每个页面单独引入 scss） */
+
+/* ---------------- 顶部概览条 ---------------- */
+.hero {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 32rpx 28rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--line);
+}
+
+.hero__title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.hero__sub {
+  font-size: 25rpx;
+  color: var(--text-3);
+  margin-top: 8rpx;
+}
+
+/* ---------------- 审核状态横幅 ---------------- */
+.audit-banner {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 22rpx 26rpx;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.audit-banner--pending {
+  background: var(--amber-weak);
+  color: var(--amber);
+}
+
+.audit-banner--approved {
+  background: var(--green-weak);
+  color: var(--green);
+}
+
+.audit-banner--rejected {
+  background: var(--red-weak);
+  color: var(--red);
+}
+
+.audit-banner__badge {
+  flex-shrink: 0;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* ---------------- 推广中心 ---------------- */
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 0 8rpx;
+}
+
+.qr-box__image {
+  width: 400rpx;
+  height: 400rpx;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  border: 1rpx solid var(--line);
+}
+
+.qr-box__placeholder {
+  width: 400rpx;
+  height: 400rpx;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  border: 1rpx dashed var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25rpx;
+  color: var(--text-3);
+  text-align: center;
+  padding: 0 40rpx;
+  line-height: 1.5;
+}
+
+.code-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  padding: 22rpx 24rpx;
+  background: var(--grey-weak);
+  border-radius: var(--radius-md);
+  margin-top: 8rpx;
+}
+
+.code-box__value {
+  font-size: 32rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  color: var(--text-1);
+}
+
+/* ---------------- 客户主页（扫码落地页） ---------------- */
+.provider-hero {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 36rpx 28rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--line);
+  text-align: center;
+}
+
+.provider-hero__avatar {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: var(--brand-weak);
+  color: var(--brand);
+  font-size: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20rpx;
+  font-weight: 600;
+}
+
+.provider-hero__name {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+
+.provider-hero__area {
+  font-size: 26rpx;
+  color: var(--text-2);
+  margin-top: 10rpx;
+}
+
+.provider-hero__tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.service-item {
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.service-item:last-child {
+  border-bottom: none;
+}
+
+.service-item__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.service-item__name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.service-item__price {
+  font-size: 25rpx;
+  color: var(--amber);
+  flex-shrink: 0;
+}
+
+.service-item__desc {
+  font-size: 25rpx;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin-top: 10rpx;
+}
+
+.service-item__notes {
+  font-size: 23rpx;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin-top: 10rpx;
+}
+
+.service-item__action {
+  margin-top: 20rpx;
+}
+
+/* ---------------- 预约成功 ---------------- */
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60rpx 32rpx 32rpx;
+  text-align: center;
+}
+
+.result__glyph {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: var(--green-weak);
+  color: var(--green);
+  font-size: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+
+.result__title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.result__msg {
+  font-size: 26rpx;
+  color: var(--text-2);
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+/* ---------------- 登录页 ---------------- */
+.auth {
+  min-height: 100vh;
+  padding: 120rpx 48rpx 60rpx;
+}
+
+.auth__brand {
+  font-size: 42rpx;
+  font-weight: 600;
+  color: var(--text-1);
+  text-align: center;
+}
+
+.auth__sub {
+  font-size: 26rpx;
+  color: var(--text-3);
+  text-align: center;
+  margin-top: 12rpx;
+  margin-bottom: 64rpx;
+}
+
+.auth__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  margin-top: 40rpx;
+  font-size: 26rpx;
+  color: var(--text-2);
+}
+
+/* ---------------- 设置页 ---------------- */
+.setting-group {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1rpx solid var(--line);
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx;
+  border-bottom: 1rpx solid var(--line);
+  font-size: 28rpx;
+  color: var(--text-1);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-item__value {
+  font-size: 26rpx;
+  color: var(--text-3);
+}
+
+/* ---------------- 悬浮新增按钮 ---------------- */
+.fab {
+  position: fixed;
+  right: 32rpx;
+  bottom: 60rpx;
+  height: 92rpx;
+  padding: 0 36rpx;
+  border-radius: 999rpx;
+  background: var(--brand);
+  color: var(--text-inverse);
+  font-size: 29rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 8rpx 24rpx rgba(43, 108, 240, 0.28);
+  z-index: 30;
+}
+
+.fab:active {
+  opacity: 0.85;
+}
+
+/* ---------------- 加载更多 ---------------- */
+.loadmore {
+  text-align: center;
+  padding: 28rpx 0 8rpx;
+  font-size: 24rpx;
+  color: var(--text-3);
+}

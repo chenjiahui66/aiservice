@@ -1,0 +1,49 @@
+package com.neighborhood.service.controller;
+
+import com.neighborhood.service.common.Result;
+import com.neighborhood.service.dto.AuthDto;
+import com.neighborhood.service.service.AdminAuthService;
+import com.neighborhood.service.service.ProviderAuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 认证入口。
+ *
+ * <p>服务者与管理员走同一个 URL 前缀但不同端点，且由不同密钥签发 token，
+ * 因此服务端 token 在服务端接口上必然验签失败。</p>
+ */
+@Tag(name = "00-认证", description = "服务者注册/登录、管理员登录")
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final ProviderAuthService providerAuthService;
+    private final AdminAuthService adminAuthService;
+
+    @Operation(summary = "服务者注册",
+            description = "注册后账号为「待审核」状态，需平台管理员审核通过后才能对外展示主页并接收预约。")
+    @PostMapping("/provider/register")
+    public Result<AuthDto.LoginResponse> register(@Valid @RequestBody AuthDto.RegisterRequest request) {
+        return Result.ok("注册成功，请等待平台审核", providerAuthService.register(request));
+    }
+
+    @Operation(summary = "服务者登录", description = "返回 token 与审核状态，前端据此跳转对应页面。")
+    @PostMapping("/provider/login")
+    public Result<AuthDto.LoginResponse> providerLogin(@Valid @RequestBody AuthDto.LoginRequest request) {
+        return Result.ok(providerAuthService.login(request));
+    }
+
+    @Operation(summary = "平台管理员登录", description = "管理员账号体系独立于业务用户表。")
+    @PostMapping("/admin/login")
+    public Result<AuthDto.LoginResponse> adminLogin(@Valid @RequestBody AuthDto.LoginRequest request) {
+        return Result.ok(adminAuthService.login(request));
+    }
+}

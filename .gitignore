@@ -1,0 +1,48 @@
+# ---------- 通用 ----------
+.DS_Store
+Thumbs.db
+*.log
+*.iml
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# ---------- Java / Maven ----------
+backend/target/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---------- Node ----------
+node_modules/
+dist/
+dist-ssr/
+build/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.taro/
+
+# ---------- 环境变量（严禁提交密钥） ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+deploy/.env
+
+# ---------- 运行期产物 ----------
+backend/data/
+backend/logs/
+*.log
+/upload/
+uploads/
+deploy/certs/
+deploy/**/*.key
+deploy/**/*.pem
+
+# ---------- 数据库导出 ----------
+sql/*.sql.bak
+sql/dump/

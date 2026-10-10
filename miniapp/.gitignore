@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.temp/
+.rn_temp/
+.swc/
+npm-debug.log*
+project.private.config.json
+.DS_Store

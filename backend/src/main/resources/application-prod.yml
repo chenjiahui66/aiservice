@@ -1,0 +1,45 @@
+# ============================================================
+# 生产环境配置
+# 所有敏感项必须由环境变量注入；缺失时应启动失败，而不是回落到默认值
+# ============================================================
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:neighborhood}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&verifyServerCertificate=true&rewriteBatchedStatements=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      max-lifetime: 1200000
+      pool-name: NeighborhoodHikari
+
+  sql:
+    init:
+      # 生产环境**不自动执行**初始化脚本，schema 变更一律走 sql/ 下的人工审核迁移
+      mode: never
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+app:
+  jwt:
+    provider-secret: ${JWT_PROVIDER_SECRET:?生产环境必须设置 JWT_PROVIDER_SECRET}
+    admin-secret: ${JWT_ADMIN_SECRET:?生产环境必须设置 JWT_ADMIN_SECRET}
+  wechat:
+    app-id: ${WX_APP_ID:?生产环境必须设置 WX_APP_ID}
+    app-secret: ${WX_APP_SECRET:?生产环境必须设置 WX_APP_SECRET}
+    code-mode: REAL
+  bootstrap:
+    enabled: false
+  storage:
+    qr-dir: ${QR_DIR:/data/qr}
+
+logging:
+  level:
+    root: INFO
+    com.neighborhood.service: INFO
+  file:
+    name: ${LOG_FILE:/data/logs/neighborhood-backend.log}

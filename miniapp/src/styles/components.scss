@@ -1,0 +1,502 @@
+/** 通用业务组件样式：状态页、表单、订单卡片、统计块 */
+
+/* ---------------- 状态页：加载中 / 空数据 / 请求失败 ---------------- */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 96rpx 40rpx;
+  text-align: center;
+}
+
+.state__glyph {
+  font-size: 64rpx;
+  line-height: 1;
+  margin-bottom: 24rpx;
+  opacity: 0.55;
+}
+
+.state__title {
+  font-size: 28rpx;
+  color: var(--text-2);
+  margin-bottom: 10rpx;
+}
+
+.state__desc {
+  font-size: 25rpx;
+  color: var(--text-3);
+  max-width: 480rpx;
+  margin-bottom: 28rpx;
+}
+
+.state__retry {
+  min-width: 220rpx;
+}
+
+/* 骨架屏 */
+.skeleton-row {
+  height: 24rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #eef0f4 25%, #f6f7f9 37%, #eef0f4 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  margin-bottom: 18rpx;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ---------------- 表单（按 formFields 动态渲染） ---------------- */
+.form-item {
+  margin-bottom: 32rpx;
+}
+
+.form-item__label {
+  display: flex;
+  align-items: center;
+  font-size: 27rpx;
+  color: var(--text-1);
+  margin-bottom: 14rpx;
+}
+
+.form-item__required {
+  color: var(--red);
+  margin-right: 8rpx;
+}
+
+.form-item__hint {
+  font-size: 22rpx;
+  color: var(--text-3);
+  margin-left: 10rpx;
+}
+
+.form-item__control {
+  width: 100%;
+  background: var(--surface);
+  border: 1rpx solid var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 22rpx 24rpx;
+  font-size: 29rpx;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+.form-item__control--textarea {
+  min-height: 150rpx;
+}
+
+.form-item__control--error {
+  border-color: var(--red);
+  background: var(--red-weak);
+}
+
+.form-item__placeholder {
+  color: var(--text-3);
+  font-size: 27rpx;
+}
+
+.form-item__error {
+  display: block;
+  font-size: 23rpx;
+  color: var(--red);
+  margin-top: 10rpx;
+}
+
+.form-item__counter {
+  text-align: right;
+  font-size: 21rpx;
+  color: var(--text-3);
+  margin-top: 8rpx;
+}
+
+/* 选项胶囊（时段 / 单选） */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.chip {
+  padding: 16rpx 26rpx;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1rpx solid var(--line-strong);
+  font-size: 27rpx;
+  color: var(--text-2);
+  line-height: 1.3;
+}
+
+.chip--on {
+  background: var(--brand-weak);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.chip--off {
+  opacity: 0.35;
+}
+
+/* 日期选择条 */
+.date-scroll {
+  white-space: nowrap;
+  width: 100%;
+}
+
+.date-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 116rpx;
+  padding: 16rpx 14rpx;
+  margin-right: 14rpx;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1rpx solid var(--line-strong);
+}
+
+.date-chip__label {
+  font-size: 27rpx;
+  color: var(--text-1);
+  line-height: 1.3;
+}
+
+.date-chip__week {
+  font-size: 21rpx;
+  color: var(--text-3);
+  margin-top: 4rpx;
+}
+
+.date-chip--on {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.date-chip--on .date-chip__label,
+.date-chip--on .date-chip__week {
+  color: var(--text-inverse);
+}
+
+.date-chip--closed {
+  opacity: 0.4;
+}
+
+/* 数量步进 */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.stepper__btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--grey-weak);
+  color: var(--text-1);
+  font-size: 34rpx;
+  line-height: 1;
+}
+
+.stepper__btn--off {
+  opacity: 0.4;
+}
+
+.stepper__value {
+  min-width: 80rpx;
+  text-align: center;
+  font-size: 32rpx;
+  color: var(--text-1);
+}
+
+/* 勾选同意 */
+.checkline {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 20rpx 22rpx;
+  background: var(--grey-weak);
+  border-radius: var(--radius-md);
+  font-size: 25rpx;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+  border-radius: 6rpx;
+  border: 2rpx solid var(--line-strong);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: transparent;
+}
+
+.checkbox--on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--text-inverse);
+}
+
+/* ---------------- 订单卡片 ---------------- */
+.order-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+}
+
+.order-card__time {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.2;
+}
+
+.order-card__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.order-card__dot {
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.order-card__desc {
+  margin-top: 10rpx;
+  padding: 14rpx 18rpx;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: 25rpx;
+  color: var(--text-2);
+}
+
+.order-card__pending {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed var(--line-strong);
+  font-size: 24rpx;
+  color: var(--amber);
+}
+
+/* ---------------- 统计块 ---------------- */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -8rpx;
+}
+
+.stat {
+  width: 33.333%;
+  padding: 0 8rpx;
+  margin-bottom: 16rpx;
+  text-align: center;
+}
+
+.stat__value {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.2;
+}
+
+.stat__value--alert {
+  color: var(--amber);
+}
+
+.stat__label {
+  font-size: 23rpx;
+  color: var(--text-3);
+  margin-top: 6rpx;
+}
+
+/* ---------------- 键值行 ---------------- */
+.kv {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--line);
+  font-size: 27rpx;
+}
+
+.kv:last-child {
+  border-bottom: none;
+}
+
+.kv__k {
+  color: var(--text-2);
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+.kv__v {
+  color: var(--text-1);
+  text-align: right;
+  word-break: break-all;
+}
+
+/* ---------------- 搜索框 ---------------- */
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 18rpx 22rpx;
+  margin-bottom: 20rpx;
+}
+
+.searchbar__input {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--text-1);
+}
+
+/* ---------------- 筛选条 ---------------- */
+.filters {
+  display: flex;
+  gap: 14rpx;
+  margin-bottom: 20rpx;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-strong);
+  font-size: 25rpx;
+  color: var(--text-2);
+}
+
+.filter-chip--on {
+  background: var(--brand-weak);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 500;
+}
+
+/* ---------------- 时间轴（订单流转记录） ---------------- */
+.timeline {
+  padding-left: 8rpx;
+}
+
+.timeline__item {
+  display: flex;
+  gap: 20rpx;
+  padding-bottom: 28rpx;
+  position: relative;
+}
+
+.timeline__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 24rpx;
+}
+
+.timeline__dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-top: 10rpx;
+}
+
+.timeline__line {
+  flex: 1;
+  width: 2rpx;
+  background: var(--line-strong);
+  margin-top: 6rpx;
+}
+
+.timeline__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline__title {
+  font-size: 27rpx;
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.timeline__time {
+  font-size: 22rpx;
+  color: var(--text-3);
+  margin-top: 4rpx;
+}
+
+.timeline__remark {
+  font-size: 24rpx;
+  color: var(--text-2);
+  margin-top: 6rpx;
+}
+
+/* ---------------- 输入弹层 ---------------- */
+.prompt-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(26, 31, 41, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  z-index: 100;
+}
+
+.prompt {
+  width: 100%;
+  max-width: 620rpx;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 32rpx 28rpx 24rpx;
+}
+
+.prompt__title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 20rpx;
+}
+
+.prompt__actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 28rpx;
+}
+
+.prompt__actions .btn {
+  flex: 1;
+}

@@ -1,0 +1,147 @@
+:root {
+  --brand: #2f6fed;
+  --brand-soft: #eaf1fe;
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --border: #e4e8ef;
+  --border-soft: #eef1f6;
+  --text: #1f2733;
+  --text-sub: #5b6676;
+  --text-muted: #8a94a6;
+  --danger: #e04b4b;
+  --warning: #e6a23c;
+  --success: #2ba471;
+  --sidebar-bg: #1f2430;
+  --sidebar-text: #b7bfcd;
+  --sidebar-active: #ffffff;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', Arial, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 通用布局块 ---------------- */
+
+.page {
+  padding: 16px 20px 24px;
+}
+
+.page__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.page__title {
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.page__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.panel + .panel {
+  margin-top: 14px;
+}
+
+.panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-bar .el-input,
+.filter-bar .el-select {
+  width: 200px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.mono {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12.5px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ---------------- Element Plus 细节收敛 ---------------- */
+
+.el-table {
+  font-size: 13px;
+}
+
+.el-table th.el-table__cell {
+  background: #fafbfc !important;
+  color: var(--text-sub);
+  font-weight: 600;
+}
+
+.el-descriptions__label {
+  color: var(--text-sub) !important;
+}
+
+.el-dialog__body {
+  padding-top: 8px;
+}

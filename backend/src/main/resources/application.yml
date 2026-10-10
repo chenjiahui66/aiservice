@@ -1,0 +1,82 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  tomcat:
+    max-http-form-post-size: 10MB
+
+spring:
+  application:
+    name: neighborhood-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    # 开发期打印 SQL，生产环境请改为 org.apache.ibatis.logging.nologging.NoLoggingImpl
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  type-aliases-package: com.neighborhood.service.entity
+
+# ---------------------------------------------------------------------
+# JWT —— 服务者端与管理员端使用**不同密钥**，从物理上杜绝跨端越权
+# ---------------------------------------------------------------------
+app:
+  jwt:
+    # 生产环境必须通过环境变量注入不同随机值，切勿使用默认值上线
+    provider-secret: ${JWT_PROVIDER_SECRET:change-me-provider-secret-at-least-32-chars}
+    provider-issuer: neighborhood-provider
+    provider-expire-minutes: ${JWT_PROVIDER_EXPIRE_MINUTES:10080}
+    admin-secret: ${JWT_ADMIN_SECRET:change-me-admin-secret-at-least-32-chars}
+    admin-issuer: neighborhood-admin
+    admin-expire-minutes: ${JWT_ADMIN_EXPIRE_MINUTES:480}
+
+  # -------------------------------------------------------------------
+  # 微信小程序能力封装
+  # 未配置 AppID/AppSecret 时自动降级为 DEV 模式，接口返回会明确标注非真实小程序码
+  # -------------------------------------------------------------------
+  wechat:
+    app-id: ${WX_APP_ID:}
+    app-secret: ${WX_APP_SECRET:}
+    # REAL = 调用微信官方 wxa/getwxacode 接口；DEV = 生成带明确水印的占位二维码
+    code-mode: ${WX_CODE_MODE:AUTO}
+    scene-page: ${WX_SCENE_PAGE:pages/provider/index}
+    access-token-ttl-seconds: ${WX_ACCESS_TOKEN_TTL:6600}
+
+  # 二维码图片落盘目录（只存 Key/相对路径，不入库二进制）
+  storage:
+    qr-dir: ${QR_DIR:./data/qr}
+    # 客户端可见的推广落地页地址（H5/外部分享链接），仅用于展示
+    public-base-url: ${PUBLIC_BASE_URL:}
+
+springdoc:
+  swagger-ui:
+    path: /doc.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    com.neighborhood.service: ${LOG_LEVEL:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
