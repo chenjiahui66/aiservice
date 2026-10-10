@@ -5,22 +5,23 @@
 ## 前置条件
 
 1. MySQL 8 已启动，已执行 `sql/schema.sql` 与 `sql/seed.sql`
-2. 后端已启动（见 `scripts/run-local.cmd`）
-3. 环境变量已设置（见 `deploy/.env.example`）：
-   - `DB_USERNAME` / `DB_PASSWORD`
-   - `ADMIN_PASSWORD`（首次启动时用它创建管理员）
-   - `JWT_PROVIDER_SECRET` / `JWT_ADMIN_SECRET`
+2. 已创建 `deploy/.env` 并填入 `DB_USERNAME` / `DB_PASSWORD` / `JWT_*`
+3. 后端已启动：`scripts\start-backend.cmd`
+4. 把凭据导入当前 shell 后再运行测试。
 
-## 运行
+```bat
+:: Windows
+set DB_USERNAME=app_user
+set DB_PASSWORD=<你的值>
+set ADMIN_USERNAME=admin
+set ADMIN_PASSWORD=<你的值>
 
-```bash
-node tests/smoke.mjs
+node tests\smoke.mjs
 ```
 
 退出码 `0` 表示全部通过。
 
-脚本里管理员账号密码写死为 `admin / AdminDev123456`（仅对应 `deploy/.env.example` 的开发默认值），
-换环境请同步修改脚本顶部常量。
+> 脚本**不内置任何凭据**。缺 `ADMIN_PASSWORD` 会直接报错退出，不会用默认值蒙混过关。
 
 ## 覆盖的用例
 

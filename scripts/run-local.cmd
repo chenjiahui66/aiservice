@@ -1,31 +1,27 @@
 @echo off
+chcp 65001 > nul
 REM ============================================================
-REM 本地开发启动脚本（Windows / PowerShell 或 cmd 均可）
-REM 用法： scripts\run-local.cmd  或  scripts\run-local.ps1
+REM 本地开发启动脚本（前台 Maven 运行，改代码后需手动重启）
 REM
-REM 敏感项一律从环境变量读取，本文件不含任何真实口令。
-REM 首次使用请先创建 deploy\.env（该文件已被 .gitignore 忽略）
+REM ⚠️ 同样不内置任何密钥，必须先有 deploy\.env
+REM 生产环境请使用 deploy\docker-compose.yml，不要用本脚本。
 REM ============================================================
-setlocal
 
-if exist "%~dp0..\deploy\.env" (
-  for /f "usebackq tokens=1,* delims==" %%a in ("%~dp0..\deploy\.env") do (
-    if not "%%a"=="" if not "%%a"==# (
-      set "%%a=%%b"
-    )
-  )
-  echo [env] 已加载 deploy\.env
-) else (
-  echo [env] 未找到 deploy\.env，将使用当前环境变量与默认值
+set "ROOT=%~dp0.."
+set "ENVFILE=%ROOT%\deploy\.env"
+
+if not exist "%ENVFILE%" (
+  echo [ERROR] 未找到 %ENVFILE%
+  echo 请先执行: copy deploy\.env.example deploy\.env  并填入真实值
+  exit /b 1
 )
 
-if "%DB_PASSWORD%"=="" set "DB_PASSWORD=NbLocal2026Dev"
-if "%ADMIN_PASSWORD%"=="" set "ADMIN_PASSWORD=AdminDev123456"
-if "%JWT_PROVIDER_SECRET%"=="" set "JWT_PROVIDER_SECRET=dev-provider-secret-change-me-please-32b"
-if "%JWT_ADMIN_SECRET%"=="" set "JWT_ADMIN_SECRET=dev-admin-secret-change-me-please-32bytes"
+for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%ENVFILE%") do set "%%a=%%b"
+
 if "%SPRING_PROFILES_ACTIVE%"=="" set "SPRING_PROFILES_ACTIVE=dev"
 
-echo [start] 启动后端 http://localhost:%SERVER_PORT%
-cd /d "%~dp0..\backend"
+echo [env] 已加载 deploy\.env
+echo [start] 前台启动 http://localhost:%SERVER_PORT%
+cd /d "%ROOT%\backend"
 mvn -q spring-boot:run
 endlocal

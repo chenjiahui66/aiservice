@@ -10,8 +10,16 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const ENTITY_DIR = 'D:/project/MVPdemo/aiservice/backend/src/main/java/com/neighborhood/service/entity';
-const DB = 'neighborhood';
-const MYSQL = ['-u', 'app_user', '-pNbLocal2026Dev', '--default-character-set=utf8mb4', '-N', '-B', '-e'];
+const DB = process.env.DB_NAME || 'neighborhood';
+// 凭据从环境变量读取；与 deploy\.env 保持一致
+const DB_USER = process.env.DB_USERNAME;
+const DB_PASS = process.env.DB_PASSWORD;
+if (!DB_USER || !DB_PASS) {
+  console.error('未设置 DB_USERNAME / DB_PASSWORD。');
+  console.error('请先 copy deploy\\.env.example deploy\\.env 并填入真实值，然后在同一 shell 中导出。');
+  process.exit(1);
+}
+const MYSQL = ['-u', DB_USER, `-p${DB_PASS}`, '--default-character-set=utf8mb4', '-N', '-B', '-e'];
 
 function q(sql) {
   return execFileSync('mysql', [...MYSQL, sql], { encoding: 'utf8' }).trim();

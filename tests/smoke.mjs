@@ -13,8 +13,18 @@
  *
  * 用法：node D:\tmp\agent-scripts\smoke.mjs
  */
-const BASE = 'http://localhost:8080';
-const ADMIN = { username: 'admin', password: 'AdminDev123456' };
+const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
+
+// 凭据一律从环境变量读取，不在脚本里硬编码。
+// 与 deploy\.env 保持一致的值放在该文件（已被 .gitignore 忽略）。
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+  console.error('未设置 ADMIN_PASSWORD。请先 copy deploy\\.env.example deploy\\.env 并填入真实值，');
+  console.error('然后在同一个 shell 里 export 或 set 该变量。');
+  process.exit(1);
+}
+const ADMIN = { username: ADMIN_USERNAME, password: ADMIN_PASSWORD };
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

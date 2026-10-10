@@ -90,19 +90,27 @@ mysql -u root -p < sql/seed.sql     # 平台默认服务项目模板 + 系统设
 
 ### 2. 配置环境变量
 
-复制 `deploy/.env.example`（或自行导出）：
+```bat
+copy deploy\.env.example deploy\.env
+```
+
+`deploy\.env` 已被 `.gitignore` 忽略。必填项：
 
 | 变量 | 说明 |
 |---|---|
-| `DB_HOST` / `DB_PORT` / `DB_NAME` | MySQL 连接，默认 `127.0.0.1:3306/neighborhood` |
-| `DB_USERNAME` / `DB_PASSWORD` | 应用账号，生产环境请使用最小权限账号 |
+| `DB_USERNAME` / `DB_PASSWORD` | 应用账号（生产请用最小权限账号） |
 | `JWT_PROVIDER_SECRET` | 服务者端签名密钥，≥32 字节 |
 | `JWT_ADMIN_SECRET` | 管理员端签名密钥，≥32 字节，**必须与上面不同** |
 | `WX_APP_ID` / `WX_APP_SECRET` | 微信小程序凭据，留空则小程序码走开发降级模式 |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 仅开发环境用于首次创建管理员账号 |
+| `ADMIN_PASSWORD` | 仅 dev profile，用于首次创建管理员账号 |
 
-> `WX_APP_SECRET` 与数据库密码**只允许存在于环境变量**，
-> 已被 `.gitignore` 拦截，切勿写入任何提交文件。
+生成 JWT 密钥：`openssl rand -base64 48`
+
+> 🔴 **任何脚本、代码、文档里都不要写密钥兜底默认值。**
+> `application-prod.yml` 依赖 `${JWT_PROVIDER_SECRET:?}` 在缺配置时**启动失败**，
+> 这是防止生产环境用上弱密钥的关键防线。若某个启动脚本先塞一个写死的默认值，
+> 这道校验就会被架空——生产环境会悄悄用上公开可查的签名密钥。
+> `scripts/start-backend.cmd` 因此在 `.env` 缺失或关键项为空时**直接拒绝启动**。
 
 ### 3. 启动后端
 
@@ -117,13 +125,28 @@ scripts\start-backend.cmd
 scripts\stop-backend.cmd
 ```
 
-开发时也可用 `scripts\run-local.cmd`（前台 Maven 运行，改代码自动重启）。
+开发时也可用 `scripts\run-local.cmd`（前台 Maven 运行，改代码需手动重启）。
 
 接口文档：<http://localhost:8080/doc.html>
 
-> ⚠️ **Windows 注意事项**：`.cmd` 脚本必须是 **CRLF 行尾**。用编辑器写入时若变成 LF，
-> `cmd.exe` 会把整行拆成碎片执行，报「文件名、目录名或卷标语法不正确」之类的莫名其妙错误。
-> 本仓库的脚本已统一为 CRLF，新增脚本请注意保持。
+> ⚠️ **Windows 注意事项**：`.cmd` 脚本必须是 **CRLF 行尾**。若写成 LF，
+> `cmd.exe` 会把整行拆成碎片执行，报出「文件名、目录名或卷标语法不正确」之类
+> 与真实问题毫无关系的错误，很有误导性。
+
+### 4. 运行测试
+
+```bat
+:: 单元测试
+cd backend && mvn test
+
+:: 实体 ↔ 表结构双向校验（需先启动 MySQL 并导入 schema）
+node tests\check-entity-cols.mjs
+
+:: 核心闭环冒烟测试（需后端已启动）
+node tests\smoke.mjs
+```
+
+测试脚本同样**不内置凭据**，从环境变量读取（`DB_USERNAME` / `DB_PASSWORD` / `ADMIN_PASSWORD`）。
 
 ---
 
