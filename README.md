@@ -31,7 +31,7 @@
 → 客户档案与复购计划更新 → 推广统计为真实计数 → 后台操作留痕
 ```
 
-### 尚未验证的项（不粉饰）
+### 未验证的项（不粉饰）
 
 - Docker 部署编排**未实际启动验证**——本机 Docker Desktop 引擎未运行。
 - 小程序端**未在微信开发者工具中真机/模拟器运行过**，仅完成构建与逻辑层验证。
@@ -39,6 +39,27 @@
 - 后台「服务主页模板配置」页**没有对应的后端管理接口**，当前基于 `service_items` 的
   `formFields` / `bookingRules` 实现，属于产品假设，需要你确认。
 - 面向客户的**投诉提交入口**尚未实现（当前只有后台处理端）。
+
+---
+
+## 小程序端构建
+
+```bat
+cd miniapp
+npm install
+
+:: 开发（热更新）
+npm run dev:weapp
+
+:: 构建
+set TARO_APP_API_BASE=https://你的后端域名
+npm run build:weapp
+```
+
+> 🔴 **`TARO_APP_API_BASE` 必须在 `config/dev.ts` / `config/prod.ts` 的
+> `defineConstants` 里显式声明**，否则不会被内联——小程序运行时没有 `process` 对象，
+> 构建能通过，但一启动就抛 `ReferenceError: process is not defined`。
+> 本仓库已配好；新增环境变量时记得同步声明。
 
 ---
 

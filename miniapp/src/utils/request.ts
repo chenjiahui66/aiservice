@@ -157,8 +157,29 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   return body.data
 }
 
+/**
+ * 把底层失败翻译成**可操作**的提示。
+ *
+ * 小程序最常见的坑是「合法域名未配置」——请求在微信层就被拦下，
+ * 根本发不出去，Network 面板里什么也看不到，只有 Console 一行
+ * `request:fail url not in domain list`。
+ * 如果统一报「网络异常」，开发者根本猜不到真正原因。
+ */
 function describeNetworkError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e ?? '')
+
+  // 域名未配置 / 未勾选「不校验合法域名」
+  if (/url not in domain list|not in domain list/i.test(raw)) {
+    return '接口域名未授权：请在微信开发者工具「详情 → 本地设置」勾选「不校验合法域名」'
+  }
+  // 真机预览 / 体验版必须走 https 且在后台配置 request 合法域名
+  if (/https|ssl|tls|certificate/i.test(raw)) {
+    return '接口必须使用 HTTPS，并在小程序后台配置 request 合法域名'
+  }
+  // 开发工具里 localhost 常被拦；真机根本访问不到本机
+  if (/localhost|127\.0\.0\.1/.test(BASE_URL) && /fail|network|error/i.test(raw)) {
+    return '当前后端地址是 localhost，真机无法访问；请设置 TARO_APP_API_BASE 为可访问的域名'
+  }
   if (/timeout/i.test(raw)) return '请求超时，请稍后重试'
   if (/fail|network|error/i.test(raw)) return '网络异常，请检查网络后重试'
   return '网络异常，请检查网络后重试'
