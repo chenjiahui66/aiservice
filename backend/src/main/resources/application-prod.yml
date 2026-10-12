@@ -32,8 +32,13 @@ app:
     app-id: ${WX_APP_ID:?生产环境必须设置 WX_APP_ID}
     app-secret: ${WX_APP_SECRET:?生产环境必须设置 WX_APP_SECRET}
     code-mode: REAL
+  # 首次部署时置 BOOTSTRAP_ADMIN_ENABLED=true，应用会按 ADMIN_USERNAME/ADMIN_PASSWORD
+  # 创建管理员；账号已存在时是**幂等空操作**，不会覆盖既有密码。
+  # 管理员建好后应把该变量改回 false。
   bootstrap:
-    enabled: false
+    enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
+    admin-username: ${ADMIN_USERNAME:admin}
+    admin-password: ${ADMIN_PASSWORD:}
   storage:
     qr-dir: ${QR_DIR:/data/qr}
 

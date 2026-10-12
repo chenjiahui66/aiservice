@@ -46,3 +46,7 @@ deploy/**/*.pem
 # ---------- 数据库导出 ----------
 sql/*.sql.bak
 sql/dump/
+
+# ---------- 部署产物（构建出来的包，不入库） ----------
+nbservice-deploy.zip
+nbservice-deploy.tar.gz

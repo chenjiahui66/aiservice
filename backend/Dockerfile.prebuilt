@@ -1,0 +1,45 @@
+# ---------- 预构建镜像：不编译，直接使用本地打好的 jar ----------
+#
+# ⚠️ 为什么需要这个文件：
+#   小内存机器（1.6G / 已用 700M）在容器里跑 `mvn package` 会直接 OOM。
+#   Maven 编译至少要 1GB 堆，而 available 只有 912MB。
+#   因此 jar 必须在本地/CI 打好再上传，服务器只负责运行。
+#
+# 使用：
+#   cd backend && mvn -DskipTests package        # 本地打包
+#   上传 backend/target/neighborhood-backend.jar
+#   docker compose ... build backend              # 这里不会编译，只 COPY
+
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# 只拷预构建产物与配置，跳过整个编译阶段
+COPY target/neighborhood-backend.jar ./app.jar
+
+RUN addgroup -S app && adduser -S app -G app \
+    && mkdir -p /data/qr /data/logs \
+    && chown -R app:app /data /app
+
+USER app
+
+ENV TZ=Asia/Shanghai \
+    SPRING_PROFILES_ACTIVE=prod \
+    QR_DIR=/data/qr \
+    LOG_FILE=/data/logs/neighborhood-backend.log
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+  CMD wget -qO- http://localhost:8080/v3/api-docs >/dev/null 2>&1 || exit 1
+
+# 显式限制堆大小。
+# 容器 JVM 若用默认的 MaxRAMPercentage(25%)，会按宿主内存算而拿到偏大的堆，
+# 与同机其它 Java 进程叠加时容易触发 OOM。384m 是本服务实测够用的值。
+ENTRYPOINT ["java", \
+  "-Dfile.encoding=UTF-8", \
+  "-Xms128m", "-Xmx384m", \
+  "-XX:MaxMetaspaceSize=128m", \
+  "-XX:+UseSerialGC", \
+  "-XX:-OmitStackTraceInFastThrow", \
+  "-jar", "/app/app.jar"]

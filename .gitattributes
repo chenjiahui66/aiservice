@@ -1,0 +1,41 @@
+# ============================================================
+# 行尾规则 —— 防止两类脚本在跨平台时被搞坏
+#
+# Windows 的两类脚本要求相反的行尾，仓库必须显式固化：
+#   .cmd/.bat → CRLF，否则 cmd.exe 会把整行拆成碎片执行
+#   .sh      → LF，否则 Linux 报 bad interpreter
+# ============================================================
+
+* text=auto
+
+# Windows 批处理：必须 CRLF
+*.cmd    text eol=crlf
+*.bat    text eol=crlf
+
+# Shell 脚本：必须 LF，否则 Linux 无法执行
+*.sh     text eol=lf
+*.bash   text eol=lf
+
+# Dockerfile 会被 COPY 进镜像，保持 LF
+Dockerfile* text eol=lf
+
+# 前端源码交给各自的格式化工具，不在这里干预
+*.ts     text
+*.js     text
+*.mjs    text
+*.vue    text
+*.json   text
+*.yml    text
+*.yaml   text
+*.md     text
+
+# 二进制，不做行尾转换
+*.jar    binary
+*.png    binary
+*.jpg    binary
+*.ico    binary
+*.ttf    binary
+*.woff   binary
+*.woff2  binary
+*.pem    text
+*.key    text

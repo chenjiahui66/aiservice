@@ -1,0 +1,147 @@
+# ============================================================
+# 生产部署编排 —— community.aindgc.com
+#
+# 结构（与已有 aindgc 部署并存）：
+#   nb-mysql     MySQL 8
+#   nb-backend   Spring Boot（community 业务）
+#   nb-admin     Nginx：静态资源 + /api 反代 + TLS
+#
+# ⚠️ 内存预算（目标机 1.6G total / 700M used / ~912M available / 2G swap）
+#
+#   实测常驻占用（非上限）：
+#     nb-backend  ≈ 350~420 MB   (JVM -Xmx384m)
+#     nb-mysql    ≈ 180~230 MB   (buffer pool 128M)
+#     nb-admin    ≈  10 MB
+#     ─────────────────────────
+#     合计        ≈ 550~660 MB
+#     剩余余量    ≈ 250~360 MB   ← 偏紧，靠 swap 兜底
+#
+#   绝对不要在服务器上构建镜像：Maven 编译要 1GB+ 堆，会直接 OOM。
+#   必须在本地/CI 执行 `mvn -DskipTests package` 后只上传 jar，
+#   用 Dockerfile.prebuilt（不含编译阶段）。
+#
+# 使用：
+#   cp deploy/.env.example deploy/.env   并填入真实值
+#   ./deploy/deploy.sh
+# ============================================================
+name: nb-community
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: nb-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --max-connections=100
+      # ---- 内存调优：小内存机器必须收紧，默认值会吃掉几百 MB ----
+      - --innodb-buffer-pool-size=128M
+      - --innodb-log-buffer-size=8M
+      - --performance-schema=OFF
+      - --skip-name-resolve
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?必填}
+      MYSQL_DATABASE: ${DB_NAME:-neighborhood}
+      MYSQL_USER: ${DB_USERNAME:?必填}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?必填}
+    volumes:
+      - nb-mysql-data:/var/lib/mysql
+      # 仅首次初始化时执行；已初始化的库会跳过
+      - ../sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../sql/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    networks: [nb-net]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  backend:
+    # ⚠️ 用预构建 Dockerfile，服务器上不编译
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prebuilt
+    image: nb-backend:1.0.0
+    container_name: nb-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-neighborhood}
+      DB_USERNAME: ${DB_USERNAME:?必填}
+      DB_PASSWORD: ${DB_PASSWORD:?必填}
+      JWT_PROVIDER_SECRET: ${JWT_PROVIDER_SECRET:?必填}
+      JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?必填}
+      # 未配置微信凭据时应用会**启动失败**，这是刻意设计：
+      # 宁可不启动，也不要拿开发降级二维码上线。
+      WX_APP_ID: ${WX_APP_ID:?必填}
+      WX_APP_SECRET: ${WX_APP_SECRET:?必填}
+      # 管理员账号：仅在 admin_users 为空时创建一次，之后是幂等空操作。
+      # 口令只存在于服务器本机的 deploy/.env，不进任何提交文件。
+      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-true}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?必填}
+      PUBLIC_BASE_URL: https://community.aindgc.com
+    volumes:
+      - nb-qr:/data/qr
+      - nb-logs:/data/logs
+    networks: [nb-net]
+    deploy:
+      resources:
+        limits:
+          memory: 560M
+
+  admin:
+    image: nginx:alpine
+    container_name: nb-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - ./nginx/community-internal.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../admin-web/dist:/usr/share/nginx/html:ro
+    # ⚠️ 刻意**不**映射宿主机 80/443。
+    #
+    #    同机的 aindgc 站点已占用宿主机 80/443（其 nginx 容器直绑）。
+    #    若本容器也映射，会直接报 "port is already allocated" 起不来。
+    #
+    #    本容器只加入 bridge 网络，由**外部网关 nginx**（aindgc 那台）
+    #    终止 TLS 后反代进来。网关侧的 server 块见
+    #    deploy/nginx/community-gateway.conf。
+    networks:
+      - nb-net
+      - gateway
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+volumes:
+  nb-mysql-data:
+  nb-qr:
+  nb-logs:
+
+networks:
+  # 本项目内部网络
+  nb-net:
+    driver: bridge
+  # 外部网关网络：同机 aindgc 的 nginx 容器所在网络。
+  # nb-admin 同时加入两者，使网关能通过容器名 `nb-admin` 直接反代。
+  # ⚠️ 名字需与服务器实际情况一致，用下面的命令查：
+  #     docker network ls
+  #     docker inspect <aindgc-nginx 容器名> --format '{{json .NetworkSettings.Networks}}'
+  gateway:
+    external: true
+    name: ${GATEWAY_NETWORK:-aitools-net}
