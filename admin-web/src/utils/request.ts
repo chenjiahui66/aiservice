@@ -52,6 +52,10 @@ service.interceptors.response.use(
   },
   (error: AxiosError) => {
     const status = error.response?.status
+    const payload = error.response?.data
+    // 后端所有响应都带 Result 信封；空 body 的 500 是 dev 代理连不上上游（后端未启动）的特征。
+    const upstreamDown = status === 500 && (payload === '' || payload === undefined)
+
     if (status === 401) {
       tokenStorage.clear()
       ElMessage.error('登录状态已失效，请重新登录')
@@ -63,6 +67,8 @@ service.interceptors.response.use(
       }
     } else if (status === 403) {
       ElMessage.error('无权访问该资源')
+    } else if (upstreamDown) {
+      ElMessage.error('无法连接后端服务，请确认后端已启动（默认 localhost:8080）')
     } else if (status) {
       ElMessage.error(`请求失败（HTTP ${status}）`)
     } else {

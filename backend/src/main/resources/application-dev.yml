@@ -3,6 +3,14 @@
 # ⚠️ 本文件不含任何真实密钥。密码等敏感值一律走环境变量或 .env（已被 .gitignore 忽略）
 # ============================================================
 spring:
+  # dev 环境自动加载 deploy/.env（key=value 格式，按 properties 解析）。
+  # 目的：IDEA 直接运行 / mvn spring-boot:run 时也能读到凭据，不必先手工导出环境变量。
+  # 两个候选路径分别覆盖工作目录为 backend\ 与仓库根的情况；optional: 缺失则静默跳过，
+  # 回退到进程环境变量，不改变 docker-compose 的部署行为。
+  config:
+    import:
+      - "optional:file:../deploy/.env[.properties]"
+      - "optional:file:deploy/.env[.properties]"
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:neighborhood}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
