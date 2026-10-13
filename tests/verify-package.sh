@@ -93,6 +93,7 @@ echo "=== 4. 关键文件 ==="
 for f in backend/target/neighborhood-backend.jar \
          backend/Dockerfile.prebuilt \
          deploy/deploy.sh \
+         deploy/pull-images.sh \
          deploy/docker-compose.prod.yml \
          deploy/.env.example \
          deploy/README.md \

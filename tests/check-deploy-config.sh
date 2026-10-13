@@ -49,6 +49,11 @@ echo
 echo "=== 2. 模拟 deploy.sh 的环境变量准备阶段 ==="
 ENV_FILE="$WORK/deploy/.env"
 
+# ⚠️ 用 tail -1 而不是 head -1：.env 允许重复键，compose dotenv 的语义是
+#    「后者覆盖前者」。若 .env 里同一键出现多次，取到的必须是最后一条，
+#    否则会读到 .env.example 留下的空值而误判。
+env_get() { grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2-; }
+
 # 模拟用户按提示在 .env 里手填的三项（deploy.sh 刻意不自动生成）
 # 用 in-place 替换，贴近用户用 vi 编辑的真实行为
 sed -i 's|^WX_APP_ID=.*|WX_APP_ID=wxTESTAPPID0001|'          "$ENV_FILE"
@@ -61,12 +66,56 @@ sed -n '/^fill "MYSQL_ROOT_PASSWORD"/,/^fill "BOOTSTRAP_ADMIN_ENABLED"/p' "$REPO
 echo "  已执行 deploy.sh 中全部 fill 调用"
 
 echo
-echo "=== 3. 检查 compose 声明的必填变量是否都已落盘且非空 ==="
-# ⚠️ 用 tail -1 而不是 head -1：.env 允许重复键，compose dotenv 的语义是
-#    「后者覆盖前者」。若 .env 里同一键出现多次，取到的必须是最后一条，
-#    否则会读到 .env.example 留下的空值而误判。
-env_get() { grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2-; }
+echo "=== 2b. 手写 .env（末行无换行）—— 回归用例 ==="
+# ⚠️ 用户在本地写好 .env 再拖上去是常规操作，Windows 编辑器保存的文件
+#    最后一行常常没有换行符。旧版 fill 直接 >> 会把新键粘到上一行：
+#        GATEWAY_NETWORK=aitools-netMYSQL_ROOT_PASSWORD=xxx
+#    表现为 compose 报「MYSQL_ROOT_PASSWORD is missing」，
+#    同时 GATEWAY_NETWORK 被污染成一个不存在的网络名。这个坑踩过一次。
+printf 'WX_APP_ID=wxTESTAPPID0001\nWX_APP_SECRET=0123456789abcdef0123456789abcdef\nADMIN_USERNAME=admin\nADMIN_PASSWORD=TestAdminPass123\nGATEWAY_NETWORK=aitools-net' > "$ENV_FILE"
+if [ "$(tail -c 1 "$ENV_FILE" | wc -l)" -ne 0 ]; then
+  bad "测试前提不成立：本用例需要构造一个末行无换行的 .env"
+else
+  echo "  已构造末行无换行的 4 行 .env"
+  sed -n '/^fill "MYSQL_ROOT_PASSWORD"/,/^fill "BOOTSTRAP_ADMIN_ENABLED"/p' "$REPO/deploy/deploy.sh" \
+    | grep '^fill ' | while IFS= read -r line; do eval "$line"; done
+  # 每个键都必须独立成行、值非空
+  STUCK=0
+  for k in MYSQL_ROOT_PASSWORD DB_USERNAME DB_PASSWORD \
+           JWT_PROVIDER_SECRET JWT_ADMIN_SECRET GATEWAY_NETWORK; do
+    v=$(env_get "$k")
+    if [ -z "$v" ]; then
+      echo "  [空]  $k"
+      STUCK=1
+    elif [ "$k" = "GATEWAY_NETWORK" ] && [ "$v" != "aitools-net" ]; then
+      echo "  [污染] GATEWAY_NETWORK 被改成 [$v]"
+      STUCK=1
+    else
+      echo "  [OK]  $k = ${v:0:10}...(${#v} 字符)"
+    fi
+  done
+  # 还要确认没有出现「粘行」痕迹
+  if grep -qE '^GATEWAY_NETWORK=aitools-net[A-Z]' "$ENV_FILE"; then
+    echo "  [粘行] GATEWAY_NETWORK 行尾还有别的键：$(grep '^GATEWAY_NETWORK=' "$ENV_FILE")"
+    STUCK=1
+  fi
+  if [ "$STUCK" -eq 0 ]; then
+    echo "  [OK]  末行无换行也能正确写入，未污染其它键"
+    # 回到基于 .env.example 的完整场景继续后续校验
+    cp "$REPO/deploy/.env.example" "$ENV_FILE"
+    sed -i 's|^WX_APP_ID=.*|WX_APP_ID=wxTESTAPPID0001|' "$ENV_FILE"
+    sed -i 's|^WX_APP_SECRET=.*|WX_APP_SECRET=0123456789abcdef0123456789abcdef|' "$ENV_FILE"
+    sed -i 's|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=TestAdminPass123|' "$ENV_FILE"
+    sed -n '/^fill "MYSQL_ROOT_PASSWORD"/,/^fill "BOOTSTRAP_ADMIN_ENABLED"/p' "$REPO/deploy/deploy.sh" \
+      | grep '^fill ' | while IFS= read -r line; do eval "$line"; done
+    echo "  已恢复完整 .env 场景并重跑 fill"
+  else
+    echo; echo "[FAIL] fill() 在「末行无换行」的文件上会写坏 .env"; exit 1
+  fi
+fi
 
+echo
+echo "=== 3. 检查 compose 声明的必填变量是否都已落盘且非空 ==="
 MISSING=0
 for k in MYSQL_ROOT_PASSWORD DB_USERNAME DB_PASSWORD \
          JWT_PROVIDER_SECRET JWT_ADMIN_SECRET \

@@ -94,14 +94,14 @@ echo
 # ---------------------------------------------------------------------
 info "准备环境变量"
 
-gen_secret() { openssl rand -base64 48 | tr -d '\n'; }
+gen_secret() { openssl rand -base64 48 | tr -d '\r\n'; }
 # 数据库口令用十六进制随机串：纯 [0-9a-f]，不含 base64 的 + / = 等字符。
 #
 # ⚠️ 不要再用 `openssl rand -base64 N | tr -c 'A-Za-z0-9' '' | head -c 24`：
 #    GNU coreutils 的 tr 要求「非 -t 模式下 set2 必须非空」，该写法直接报错
 #    且**不输出任何内容**，口令会被静默填成空串，随后 compose 的
 #    ${DB_PASSWORD:?必填} 在服务器上才炸。
-gen_db_password() { openssl rand -hex 16; }
+gen_db_password() { openssl rand -hex 16 | tr -d '\r\n'; }
 
 [ -f "$ENV_FILE" ] || cp "$ROOT/deploy/.env.example" "$ENV_FILE"
 
@@ -117,8 +117,18 @@ fill() {
   if grep -qE "^${key}=" "$ENV_FILE"; then
     sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
   else
-    printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
+    # ⚠️ 开头这个 \n 不能省。
+    #    用户手写的 .env（Windows 编辑器保存）最后一行常常没有换行符，
+    #    直接 >> 会把新键粘到上一行末尾：
+    #        GATEWAY_NETWORK=aitools-netMYSQL_ROOT_PASSWORD=xxx
+    #    结果 compose 报「MYSQL_ROOT_PASSWORD is missing」，
+    #    而 GATEWAY_NETWORK 的值同时被污染成不存在的网络名。
+    #    文件本来就以换行结尾时，这里只多一个空行，dotenv 会忽略。
+    printf '\n%s=%s\n' "$key" "$val" >> "$ENV_FILE"
   fi
+  # 写完必须回读校验：静默写坏比直接报错难查得多
+  grep -qE "^${key}=.*[^[:space:]]" "$ENV_FILE" \
+    || fail "写入 ${key} 失败，请检查 ${ENV_FILE} 是否可写"
   info "已生成 ${key}"
 }
 
@@ -172,7 +182,19 @@ if [ "${SKIP_GATEWAY_HINT:-}" != "1" ]; then
 fi
 
 # ---------------------------------------------------------------------
-# 3. 启动
+# 3. 基础镜像（Docker Hub 在国内通常被墙，必须预拉取）
+# ---------------------------------------------------------------------
+PULL="$ROOT/deploy/pull-images.sh"
+if [ -f "$PULL" ]; then
+  info "准备基础镜像"
+  bash "$PULL" || fail "基础镜像拉取失败，见上方提示（换网络 / 配加速器 / 离线导入）"
+else
+  # 没有脚本时至少尝试直接拉，让用户看到真实报错
+  warn "找不到 deploy/pull-images.sh，尝试直接拉取（Docker Hub 被墙时会失败）"
+fi
+
+# ---------------------------------------------------------------------
+# 4. 启动
 # ---------------------------------------------------------------------
 info "启动服务"
 

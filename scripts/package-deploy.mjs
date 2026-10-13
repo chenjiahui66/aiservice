@@ -44,6 +44,7 @@ const mustExist = [
   ['预构建 Dockerfile', 'backend/Dockerfile.prebuilt'],
   ['后台产物', 'admin-web/dist/index.html'],
   ['部署脚本', 'deploy/deploy.sh'],
+  ['镜像预拉取脚本', 'deploy/pull-images.sh'],
   ['生产编排', 'deploy/docker-compose.prod.yml'],
   ['网关 nginx 配置（完整）', 'deploy/nginx/community-gateway.conf'],
   ['网关 nginx 配置（仅 HTTP）', 'deploy/nginx/community-gateway-http.conf'],
@@ -105,10 +106,14 @@ copyFile(`${ROOT}/backend/Dockerfile.prebuilt`, `${STAGE}/backend/Dockerfile.pre
 const webFiles = copyDir(`${ROOT}/admin-web/dist`, `${STAGE}/admin-web/dist`);
 console.log(`  admin-web/dist   : ${webFiles} 个文件`);
 
-// 部署配置：排除 .env（含密钥）
+// 部署配置：排除含密钥的 .env 文件
+// ⚠️ 必须是「以 .env 结尾」，不能只判 `=== '.env'`：
+//    用户常把生产凭据临时写成 deploy/nb-prod.env 再手动上传，
+//    只挡 .env 会让这个文件进包，靠后面的密钥扫描兜底（虽然也能拦，但会中断打包）。
+//    .env.example 不以 .env 结尾，不受影响。
 const depFilter = (p, e) => {
   const base = path.basename(p);
-  if (base === '.env') return false;                 // 含密钥，绝不进包
+  if (base === '.env' || base.endsWith('.env')) return false;   // 含密钥，绝不进包
   if (e.isDirectory() && (base === 'node_modules' || base === '.git' || base === 'ssl' || base === 'certbot-webroot')) return false;
   return true;
 };
@@ -167,6 +172,7 @@ const required = [
   'admin-web/dist/index.html',
   'deploy/docker-compose.prod.yml',
   'deploy/deploy.sh',
+  'deploy/pull-images.sh',
   'deploy/.env.example',
   'deploy/README.md',
   'deploy/nginx/community-gateway.conf',
@@ -176,18 +182,21 @@ const required = [
   'sql/seed.sql',
 ];
 const set = new Set(listing.map((p) => p.replace(/^\.\//, '')));
+// 任何 .env 结尾的条目都算泄漏（.env.example 不以 .env 结尾，安全）
+const envLeaks = [...set].filter((p) => path.basename(p).endsWith('.env'));
+if (envLeaks.length) {
+  console.error('  [失败] 包内含 .env 文件：');
+  for (const p of envLeaks) console.error(`    ${p}`);
+  process.exit(1);
+}
 const notFound = required.filter((p) => !set.has(p));
 if (notFound.length) {
   console.error('  [失败] 包内缺少关键文件：');
   for (const p of notFound) console.error(`    ${p}`);
   process.exit(1);
 }
-if (set.has('deploy/.env')) {
-  console.error('  [失败] 包内存在 deploy/.env');
-  process.exit(1);
-}
 console.log(`  条目 ${listing.length} 个，全部为正斜杠路径`);
-console.log(`  关键文件 ${required.length} 项齐全，deploy/.env 不在包内`);
+console.log(`  关键文件 ${required.length} 项齐全，无任何 .env 文件`);
 
 fs.rmSync(STAGE, { recursive: true, force: true });
 
@@ -199,6 +208,8 @@ console.log('============================================================');
 console.log('\n上传到服务器后执行：');
 console.log('  tar -xzf nbservice-deploy.tar.gz -C /opt/nbservice');
 console.log('  cd /opt/nbservice');
-console.log('  vi deploy/.env      填 WX_APP_ID / WX_APP_SECRET / ADMIN_PASSWORD / GATEWAY_NETWORK');
+console.log('  # 把本地写好的 .env 传上来（放 /opt/nbservice/，再 mv 进 deploy/）');
+console.log('  #   需含：WX_APP_ID / WX_APP_SECRET / ADMIN_PASSWORD / GATEWAY_NETWORK');
+console.log('  #   传完记得补末尾换行：printf "\\n" >> deploy/.env');
 console.log('  chmod +x deploy/deploy.sh && ./deploy/deploy.sh');
 console.log('\n然后按 deploy/README.md 完成「网关接入」与「签发证书」两节。');
