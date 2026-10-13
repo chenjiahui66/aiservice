@@ -8,6 +8,7 @@
 | `check-entity-cols.mjs` | MySQL + `sql/schema.sql` | 实体字段 ↔ 表列**双向**比对（12 表） |
 | `check-deploy-config.sh` | Docker CLI（**不需要引擎**） | 离线校验 `deploy/` 能否起得来（29 项） |
 | `verify-package.sh` | Docker CLI + Node/Python | 部署包落地验证：解压后逐项复验 |
+| `check-manual.sh` | 无（纯文本检查） | 部署手册里 50 段命令的语法与变量自洽性 |
 
 ---
 

@@ -6,6 +6,7 @@ Thumbs.db
 .idea/
 .vscode/
 !.vscode/extensions.json
+nb-prod.env
 
 # ---------- Java / Maven ----------
 backend/target/

@@ -12,7 +12,7 @@
      │
 ┌────▼──────────────────────────────┐
 │  aindgc 的 nginx 容器（网关）      │  ← 终止 TLS，按域名分流
-└──┬───────────────┬───────────────┘
+└──┬───────────────┬───────────────┘ 
    │ www.aindgc    │ community.aindgc.com
    │ （原样保留）    │
    │                ▼
@@ -259,49 +259,38 @@ curl -I  https://www.aindgc.com                            # 确认旧站点未�
 
 ---
 
-<details>
-<summary>手动分步部署（不想用一键脚本时）</summary>
+---
 
-### 1. 上传代码
+## 不使用一键脚本时的手动分步
 
-```bash
-# backend/target/neighborhood-backend.jar 必须已在本地打好
-scp -r backend deploy sql admin-web/dist root@<IP>:/opt/nbservice/
-```
-
-### 2. 准备环境变量
+正常情况直接用 `./deploy/deploy.sh` 即可（它只是把下面的步骤串起来并加上预检）。
+只有在需要自定义流程时才手动来：
 
 ```bash
 cd /opt/nbservice
+
+# 1) 准备环境变量
 cp deploy/.env.example deploy/.env
-vi deploy/.env
-```
+vi deploy/.env                    # 填 WX_APP_ID / WX_APP_SECRET / ADMIN_PASSWORD / GATEWAY_NETWORK
 
-生成 JWT 密钥：`openssl rand -base64 48`
+# 2) 补齐自动生成的密钥（deploy.sh 平时会替你做）
+for k in MYSQL_ROOT_PASSWORD DB_PASSWORD JWT_PROVIDER_SECRET JWT_ADMIN_SECRET; do
+  grep -qE "^$k=.+[^[:space:]]" deploy/.env || echo "$k=$(openssl rand -hex 16)" >> deploy/.env
+done
+chmod 600 deploy/.env
 
-### 3. 签发 TLS 证书
-
-```bash
-mkdir -p deploy/certbot-webroot deploy/ssl
-docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d admin
-sleep 5
-docker run --rm \
-  -v /opt/nbservice/deploy/certbot-webroot:/var/www/certbot \
-  -v /opt/nbservice/deploy/ssl/live:/etc/letsencrypt/live \
-  certbot/certbot certonly --webroot -w /var/www/certbot \
-  -d community.aindgc.com --agree-tos -m <邮箱> --non-interactive
-
-cp deploy/ssl/live/community.aindgc.com/fullchain.pem deploy/ssl/community.aindgc.com.pem
-cp deploy/ssl/live/community.aindgc.com/privkey.pem   deploy/ssl/community.aindgc.com.key
-```
-
-### 4. 启动
-
-```bash
+# 3) 启动全部服务（--build 不会跑 Maven，Dockerfile.prebuilt 里没有编译阶段）
 docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+
+# 4) 等后端就绪（约 40~90 秒，首次需拉镜像 + 初始化数据库）
+docker compose -f deploy/docker-compose.prod.yml ps
+docker logs -f nb-backend      # Ctrl+C 退出，不影响容器
+
+# 5) 回到上面「网关接入」和「签发证书」两节
 ```
 
-</details>
+> ⚠️ 证书**不在这里签发**。80/443 归现有网关管，ACME 校验也走网关的 webroot，
+> 签发步骤见「签发证书」一节。在本项目里签证书属于架构错误。
 
 ---
 
@@ -349,12 +338,18 @@ docker compose -f deploy/docker-compose.prod.yml restart backend
 docker compose -f deploy/docker-compose.prod.yml down          # 保留数据卷
 docker compose -f deploy/docker-compose.prod.yml down -v       # ⚠️ 连数据一起删
 
-# 证书续期（certbot 容器方式需配定时任务，见下）
-docker run --rm ... certbot/certbot renew
+# 证书续期
+# TLS 在网关 nginx 上终止，续期后要：
+#   1) 重新拷贝到 .pem/.key 路径
+#   2) 重启【网关容器】（不是 nb-admin）
+certbot renew --dry-run
+cp /etc/letsencrypt/live/community.aindgc.com/fullchain.pem <网关ssl目录>/community.aindgc.com.pem
+cp /etc/letsencrypt/live/community.aindgc.com/privkey.pem   <网关ssl目录>/community.aindgc.com.key
+docker exec <网关容器> nginx -t && docker restart <网关容器>
 ```
 
 建议加 crontab 每天试续期，并把续期后的证书同步成 `community.aindgc.com.pem/.key`，
-再 `docker compose restart admin`。
+再重启网关容器。
 
 ---
 
