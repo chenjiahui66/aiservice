@@ -152,6 +152,75 @@ cat <<'EOF'
      正确做法：先装 http 版，证书就位后【覆盖】同名文件，不是新增。
 EOF
 
+# 变量形式 proxy_pass 必须配 resolver，否则运行时 502（no resolver defined）
+# 这个坑踩过一次：nginx 报 no resolver defined to resolve nb-admin，
+# 表现为所有转发 502，但 ping 得通、网络也通，极易误判成防火墙问题。
+#
+# ⚠️ 判定粒度是 **server 块**，不是文件：
+#    nginx 的 resolver 会被 server 块内的所有 location 继承，
+#    所以「1 个 server 块 + 1 个 resolver + 3 个变量 proxy_pass」是**正确**的。
+echo
+echo "=== 5c. 变量 proxy_pass 必须配 resolver ==="
+export PYTHONIOENCODING=utf-8
+python - "$WORK/deploy/nginx" <<'PY'
+import os, re, sys
+d = sys.argv[1]
+fails = 0
+for fn in sorted(os.listdir(d)):
+    if not fn.endswith('.conf'):
+        continue
+    text = open(os.path.join(d, fn), encoding='utf-8').read()
+    # 按大括号深度切出每个 server 块
+    blocks, depth, start, cur = [], 0, None, []
+    for i, ch in enumerate(text):
+        if ch == '{':
+            depth += 1
+            if depth == 1:
+                start, cur = i, [ch]
+                continue
+        elif ch == '}':
+            depth -= 1
+            if depth == 0 and start is not None:
+                cur.append(ch)
+                blocks.append(''.join(cur))
+                start, cur = None, []
+                continue
+        if cur:
+            cur.append(ch)
+
+    total_var = total_res = 0
+    for b in blocks:
+        # 顶层块内容从 `{` 开始收集，不含 `server` 关键字，
+        # 所以用 server_name 识别（server 块一定有它）
+        name = re.search(r'server_name\s+([^;]+);', b)
+        name = name.group(1).strip() if name else '(默认)'
+        nvar = len(re.findall(r'proxy_pass\s+\$\w+', b))
+        nres = len(re.findall(r'^\s*resolver\s+', b, re.M))
+        total_var += nvar
+        total_res += nres
+        if nvar and not nres:
+            print(f"  [!!] {fn} 的 server({name}) 有 {nvar} 处变量 proxy_pass 却没有 resolver")
+            fails += 1
+        elif nvar:
+            print(f"  [OK] {fn} server({name}): {nvar} 处变量 proxy_pass，server 块级 resolver 覆盖")
+    if total_var == 0:
+        print(f"  [!!] {fn} 未解析出任何变量 proxy_pass —— 检查脚本本身是否失效")
+        fails += 1
+
+# resolver 必须指向 Docker 内嵌 DNS
+for fn in sorted(os.listdir(d)):
+    if not fn.endswith('.conf'):
+        continue
+    for r in re.findall(r'^\s*resolver\s+([^;]+);', open(os.path.join(d, fn), encoding='utf-8').read(), re.M):
+        if '127.0.0.11' not in r:
+            print(f"  [!!] {fn} resolver 指向 {r.strip()}，不是 Docker 内嵌 DNS 127.0.0.11")
+            fails += 1
+if fails == 0:
+    print("  [OK] 所有 resolver 均指向 127.0.0.11（Docker 内嵌 DNS）")
+sys.exit(1 if fails else 0)
+PY
+[ $? -ne 0 ] && FAIL=$((FAIL+1))
+
 echo
 echo "=== 6. deploy/.env 绝不能在包里 ==="
 [ -f "$WORK/deploy/.env" ] && bad "包里存在 deploy/.env（含密钥）" || ok "包内无 deploy/.env"
