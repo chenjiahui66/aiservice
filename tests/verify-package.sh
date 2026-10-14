@@ -222,6 +222,51 @@ PY
 [ $? -ne 0 ] && FAIL=$((FAIL+1))
 
 echo
+echo "=== 5d. 反代目标必须用容器名，不能用服务名 ==="
+# ⚠️ 这条踩过：nb-admin 同时在 nb-community_nb-net 和 docker_aindgc 两个网络上，
+#    两个网络里都有名为 `backend` 的服务。用服务名寻址时 Docker DNS 可能解析到
+#    aindgc 的那个，请求进了错误的应用 —— 现象是本项目后端日志全空，
+#    接口却返回 {"code":500,"message":"Internal error: NoResourceFoundException"}。
+#    容器名全局唯一，用容器名就没有歧义。
+export PYTHONIOENCODING=utf-8
+python - "$WORK/deploy" <<'PY'
+import os, re, sys
+d = sys.argv[1]
+fails = 0
+
+# 服务名（compose 里的 services 键）→ 容器名
+compose = open(os.path.join(d, 'docker-compose.prod.yml'), encoding='utf-8').read()
+svc2c = {}
+cur = None
+for line in compose.split('\n'):
+    m = re.match(r'^  ([a-z][\w-]*):\s*$', line)
+    if m:
+        cur = m.group(1)
+    m2 = re.match(r'^\s+container_name:\s*(\S+)', line)
+    if m2 and cur:
+        svc2c[cur] = m2.group(1)
+
+print('  compose 服务名 → 容器名: ' + ', '.join(f'{k}→{v}' for k, v in svc2c.items()))
+
+ngx = os.path.join(d, 'nginx')
+for fn in sorted(os.listdir(ngx)):
+    if not fn.endswith('.conf'):
+        continue
+    t = open(os.path.join(ngx, fn), encoding='utf-8').read()
+    for host in re.findall(r'(?:set\s+\$\w+\s+")http://([\w.-]+):', t):
+        if host in svc2c:
+            # 用了服务名而不是容器名
+            print(f"  [!!] {fn} 反代到服务名 '{host}'；"
+                  f"双网络下可能解析到同名服务，应改用容器名 '{svc2c[host]}'")
+            fails += 1
+        else:
+            print(f"  [OK] {fn} 反代到 '{host}'（非服务名，或即容器名本身）")
+
+sys.exit(1 if fails else 0)
+PY
+[ $? -ne 0 ] && FAIL=$((FAIL+1))
+
+echo
 echo "=== 6. deploy/.env 绝不能在包里 ==="
 [ -f "$WORK/deploy/.env" ] && bad "包里存在 deploy/.env（含密钥）" || ok "包内无 deploy/.env"
 
