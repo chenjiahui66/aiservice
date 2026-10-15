@@ -1,14 +1,14 @@
-# ---------- 预构建镜像：不编译，直接使用本地打好的 jar ----------
+# ---------- 预构建镜像：只运行，不编译，直接使用本地打好的 jar ----------
 #
-# ⚠️ 为什么需要这个文件：
+# 为什么需要这个文件：
 #   小内存机器（1.6G / 已用 700M）在容器里跑 `mvn package` 会直接 OOM。
-#   Maven 编译至少要 1GB 堆，而 available 只有 912MB。
-#   因此 jar 必须在本地/CI 打好再上传，服务器只负责运行。
+#   Maven 编译至少需要 1GB 以上的可用内存，而 available 只有 912MB。
+#   因此 jar 必须在本地或 CI 打包好再上传，服务器只负责运行。
 #
 # 使用：
 #   cd backend && mvn -DskipTests package        # 本地打包
 #   上传 backend/target/neighborhood-backend.jar
-#   docker compose ... build backend              # 这里不会编译，只 COPY
+#   docker compose ... build backend              # 不会编译，只 COPY
 
 FROM eclipse-temurin:17-jre-alpine
 
@@ -33,11 +33,17 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
   CMD wget -qO- http://localhost:8080/v3/api-docs >/dev/null 2>&1 || exit 1
 
-# 显式限制堆大小。
-# 容器 JVM 若用默认的 MaxRAMPercentage(25%)，会按宿主内存算而拿到偏大的堆，
-# 与同机其它 Java 进程叠加时容易触发 OOM。384m 是本服务实测够用的值。
+# 显式限制堆大小：
+# 容器 JVM 若使用默认的 MaxRAMPercentage(25%)，会按宿主内存算出一个偏大的堆，
+# 与同机其它 Java 进程叠加时极容易触发 OOM。384m 是本服务实测够用的值。
+#
+# -Dfile.encoding=UTF-8 同样是必需的：
+# 小程序返回的中文、异常消息里的中文都依赖它。容器基础镜像若使用 POSIX/C
+# locale，JVM 默认编码会退化成 ANSI_X3.4-1968，Java 层字符串与 JDBC 转换
+# 都会跟着出问题。数据库字符集问题请见 application-prod.yml 的说明。
 ENTRYPOINT ["java", \
   "-Dfile.encoding=UTF-8", \
+  "-Dsun.jnu.encoding=UTF-8", \
   "-Xms128m", "-Xmx384m", \
   "-XX:MaxMetaspaceSize=128m", \
   "-XX:+UseSerialGC", \

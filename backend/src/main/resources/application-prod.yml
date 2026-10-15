@@ -22,7 +22,21 @@ spring:
     # ⚠️ 如果将来把数据库拆到**独立主机**，必须改回 sslMode=VERIFY_IDENTITY，
     #    并把该主机的 CA 导入 JVM truststore（挂载 + -Djavax.net.ssl.trustStore）。
     #    那属于真正的跨网络连接，不能再按「内网即安全」处理。
-    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:neighborhood}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    # ⚠️ characterEncoding 必须是**大写 UTF-8**，不能写小写 utf8。
+    #
+    # 踩过的坑：早先写的是 characterEncoding=utf8（看起来"就是 UTF-8"），
+    # 结果库里所有中文变成 ä¸œé—¨ä»£æ‰"åžƒåœ¾ 这种双重编码。
+    #
+    # 原因（已从 Connector/J 9.1.0 的 CharsetMapping 常量池核实）：
+    #   MySQL 字符集名里 `utf8` 和 `utf8mb3` 是**两个不同的索引**，
+    #   `utf8` 保留为 utf8mb3（MySQL 5.7 的旧 3 字节 utf8）；
+    #   而 Java 侧的规范名字是 `UTF-8`（大写），映射到 utf8mb4。
+    #   连接声明 utf8mb3、而表列是 utf8mb4 时，中文经这层转换被降级，
+    #   UTF-8 字节被当成单字节 latin1 解读，存进去就是双重编码。
+    #
+    # connectionCollation 必须显式给 utf8mb4_* 系列，
+    # 否则连接排序规则可能仍落在 utf8mb3_unicode_ci 上。
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:neighborhood}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
