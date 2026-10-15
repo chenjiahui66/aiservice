@@ -199,7 +199,7 @@ function DateControl({
   return (
     <View>
       <ScrollView className='date-scroll' scrollX enableFlex>
-        <View style={{ display: 'inline-flex', paddingBottom: '4rpx' }}>
+        <View className='date-scroll__inner'>
           {choices.map((c) => {
             const on = c.value === value
             const cls = `date-chip ${on ? 'date-chip--on' : ''} ${c.closed ? 'date-chip--closed' : ''}`

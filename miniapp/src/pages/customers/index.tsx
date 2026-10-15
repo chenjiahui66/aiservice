@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, Text, Input, ScrollView } from '@tarojs/components'
+import { View, Text, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import PageState from '@/components/PageState'
 import { fetchCustomers } from '@/api/provider'

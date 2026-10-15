@@ -92,8 +92,8 @@ export default function OrdersPage() {
         )}
       </View>
 
-      <ScrollView className='filters' scrollX enableFlex>
-        <View style={{ display: 'inline-flex', gap: '14rpx' }}>
+      <ScrollView className='filters' scrollX enableFlex style={{ marginBottom: '20rpx' }}>
+        <View className='filters__inner'>
           {STATUS_TABS.map((tab) => (
             <View
               key={tab.key || 'all'}

@@ -144,10 +144,19 @@
   opacity: 0.35;
 }
 
-/* 日期选择条 */
+/* 日期选择条：横向滚动容器。
+   注意：nowrap 要作用在 ScrollView 的**内容**上；
+   容器本身必须显式约束宽度，否则内容会溢出成整页左右滑动。 */
 .date-scroll {
-  white-space: nowrap;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* 滚动条末尾留白，避免最后一项贴着屏幕右缘 */
+.date-scroll__inner {
+  display: inline-flex;
+  padding-right: 24rpx;
 }
 
 .date-chip {
@@ -259,6 +268,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12rpx;
+  /* 时间段 + 状态 + 日期较长时换行，而不是撑出容器 */
+  flex-wrap: wrap;
   margin-bottom: 18rpx;
 }
 
@@ -308,12 +320,12 @@
 .stats {
   display: flex;
   flex-wrap: wrap;
-  margin: 0 -8rpx;
+  justify-content: space-between;
 }
 
 .stat {
-  width: 33.333%;
-  padding: 0 8rpx;
+  /* 用 space-between 分配间距，不再用负边距，避免子元素超出父容器 */
+  width: 31.5%;
   margin-bottom: 16rpx;
   text-align: center;
 }
@@ -375,32 +387,84 @@
 
 .searchbar__input {
   flex: 1;
+  /* Input 默认 min-width:auto，长 placeholder 会撑破搜索框 */
+  min-width: 0;
   font-size: 28rpx;
   color: var(--text-1);
 }
 
-/* ---------------- 筛选条 ---------------- */
+/* ---------------- 横向筛选/切换条 ----------------
+   用在 ScrollView scrollX 上：容器不换行、不设 flex，靠内部 inline-flex 排版。
+   之前这里同时写了 display:flex + flex-wrap:wrap，与 scrollX 冲突导致溢出。 */
 .filters {
-  display: flex;
-  gap: 14rpx;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
   margin-bottom: 20rpx;
-  flex-wrap: wrap;
+}
+
+.filters__inner {
+  display: inline-flex;
+  gap: 14rpx;
+  padding-right: 24rpx;
 }
 
 .filter-chip {
-  padding: 12rpx 22rpx;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 60rpx;
+  padding: 0 26rpx;
   border-radius: 999rpx;
   background: var(--surface);
   border: 1rpx solid var(--line-strong);
   font-size: 25rpx;
   color: var(--text-2);
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .filter-chip--on {
-  background: var(--brand-weak);
+  background: var(--brand);
   border-color: var(--brand);
+  color: var(--text-inverse);
+  font-weight: 500;
+}
+
+.filter-chip:active {
+  opacity: 0.8;
+}
+
+/* ---------------- 分段式 Tab ----------------
+   少量互斥选项（如「推广码 / 推广统计」）用这个，比一排胶囊更像切换器。 */
+.segmented {
+  display: flex;
+  padding: 6rpx;
+  background: var(--grey-weak);
+  border-radius: var(--radius-md);
+  margin-bottom: 20rpx;
+}
+
+.segmented__item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64rpx;
+  border-radius: var(--radius-sm);
+  font-size: 27rpx;
+  color: var(--text-2);
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.segmented__item--on {
+  background: var(--surface);
   color: var(--brand);
   font-weight: 500;
+  box-shadow: 0 2rpx 6rpx rgba(26, 31, 41, 0.06);
 }
 
 /* ---------------- 时间轴（订单流转记录） ---------------- */

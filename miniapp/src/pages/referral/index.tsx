@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, Image, Button, ScrollView } from '@tarojs/components'
+import { View, Text, Image, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import PageState from '@/components/PageState'
 import { fetchReferral, fetchReferralStats, regenerateQr } from '@/api/provider'
@@ -27,22 +27,20 @@ export default function ReferralPage() {
 
   return (
     <View className='page'>
-      <ScrollView className='filters' scrollX enableFlex>
-        <View style={{ display: 'inline-flex', gap: '14rpx' }}>
-          <View
-            className={`filter-chip ${tab === 'referral' ? 'filter-chip--on' : ''}`}
-            onClick={() => setTab('referral')}
-          >
-            推广码
-          </View>
-          <View
-            className={`filter-chip ${tab === 'stats' ? 'filter-chip--on' : ''}`}
-            onClick={() => setTab('stats')}
-          >
-            推广统计
-          </View>
+      <View className='segmented'>
+        <View
+          className={`segmented__item ${tab === 'referral' ? 'segmented__item--on' : ''}`}
+          onClick={() => setTab('referral')}
+        >
+          推广码
         </View>
-      </ScrollView>
+        <View
+          className={`segmented__item ${tab === 'stats' ? 'segmented__item--on' : ''}`}
+          onClick={() => setTab('stats')}
+        >
+          推广统计
+        </View>
+      </View>
 
       <PageState loading={loading} error={error} skeleton onRetry={reload}>
         {data && tab === 'referral' && (

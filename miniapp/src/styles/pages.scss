@@ -97,6 +97,8 @@
   background: var(--grey-weak);
   border-radius: var(--radius-md);
   margin-top: 8rpx;
+  /* 16 位推广码 + 复制按钮，窄屏时允许换行而不是溢出 */
+  flex-wrap: wrap;
 }
 
 .code-box__value {

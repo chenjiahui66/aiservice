@@ -54,7 +54,7 @@ export default function BoardPage() {
       </View>
 
       <ScrollView className='date-scroll' scrollX enableFlex style={{ marginBottom: '20rpx' }}>
-        <View style={{ display: 'inline-flex' }}>
+        <View className='date-scroll__inner'>
           {days.map((d) => {
             const on = d === date
             return (
