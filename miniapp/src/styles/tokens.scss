@@ -55,12 +55,25 @@ scroll-view {
 }
 
 /* ---------------- 布局 ---------------- */
+/*
+ * ⚠️ 重要：`padding` 简写里**绝对不能**混入 constant()/env()。
+ * constant() 只在 iOS Safari 11.0~11.2 存在，Chrome 79+ 已移除；
+ * 微信开发者工具基于 Chromium，不认这个函数 → 整条 padding 简写被判为
+ * 非法而**整条丢弃**，页面就完全没有左右内边距，内容直接贴边。
+ * 安全区必须放在独立规则里做增强，覆盖失败时自动回退到上面的兜底值。
+ */
 .page {
   min-height: 100vh;
-  padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
-  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
-  /* 页面级横向溢出兜底；真正的修法是各组件不溢出，这里是防线 */
   overflow-x: hidden;
+  /* 兜底内边距：任何情况下都生效 */
+  padding: 32rpx 32rpx 48rpx;
+}
+
+/* 安全区增强：引擎不支持时这条被丢弃，不影响上面的 padding。
+   只用 env()，不用 constant()——constant() 已被 Chrome 移除，
+   且压缩器会优先把 constant() 合并回 padding 简写，再次污染整条声明。 */
+.page {
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 
 .page--tabbed {
@@ -314,11 +327,15 @@ scroll-view {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
+  /* 同 .page：安全区不与 padding 简写混写，否则整条简写会失效 */
+  padding: 20rpx 32rpx 20rpx;
   background: var(--surface);
   border-top: 1rpx solid var(--line);
   z-index: 20;
+}
+
+.footer-bar {
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 }
 
 .footer-spacer {
