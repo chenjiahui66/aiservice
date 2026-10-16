@@ -314,6 +314,43 @@
   opacity: 0.85;
 }
 
+/* ---------------- 意见反馈入口 ---------------- */
+.feedback-entry {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 20rpx;
+  padding: 26rpx 28rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.feedback-entry:active {
+  background: var(--grey-weak);
+}
+
+.feedback-entry__title {
+  font-size: 28rpx;
+  color: var(--text-1);
+  flex-shrink: 0;
+}
+
+.feedback-entry__desc {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: var(--text-3);
+  text-align: right;
+}
+
+.feedback-entry__arrow {
+  flex-shrink: 0;
+  font-size: 32rpx;
+  color: var(--text-3);
+  line-height: 1;
+}
+
 /* ---------------- 加载更多 ---------------- */
 .loadmore {
   text-align: center;

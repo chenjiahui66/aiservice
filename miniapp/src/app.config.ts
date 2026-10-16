@@ -15,6 +15,7 @@ export default defineAppConfig({
     'pages/order-create/index',
     'pages/customer-detail/index',
     'pages/settings/index',
+    'pages/feedback/index',
 
     // 客户扫码路径（公开，无需登录）
     'pages/provider/index',

@@ -3,6 +3,7 @@ package com.neighborhood.service.controller;
 import com.neighborhood.service.common.Result;
 import com.neighborhood.service.dto.PublicDto;
 import com.neighborhood.service.service.BookingService;
+import com.neighborhood.service.service.FeedbackService;
 import com.neighborhood.service.service.PublicHomeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>所有入口只认推广码。刻意不提供任何 {@code providerId} 形式的查询参数，
  * 客户侧不存在「猜 id 就能看别人主页 / 下单到别人名下」的路径。</p>
  */
-@Tag(name = "01-公开接口(客户扫码)", description = "客户扫码进入服务主页、查看服务项目、提交预约")
+@Tag(name = "01-公开接口(客户扫码)", description = "客户扫码进入服务主页、查看服务项目、提交预约、提交意见反馈")
 @RestController
 @RequestMapping("/api/public")
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class PublicController {
 
     private final PublicHomeService publicHomeService;
     private final BookingService bookingService;
+    private final FeedbackService feedbackService;
 
     @Operation(summary = "按推广码查询服务主页",
             description = "referralCode 来自小程序码 scene 参数。后端依次校验码有效性、服务者审核状态与主页启用状态。")
@@ -46,5 +48,13 @@ public class PublicController {
     @PostMapping("/bookings")
     public Result<PublicDto.BookingResultVO> book(@Valid @RequestBody PublicDto.BookingRequest request) {
         return Result.ok(bookingService.createBooking(request));
+    }
+
+    @Operation(summary = "提交意见反馈（功能建议 / 投诉 / 违规举报）",
+            description = "匿名可提交。服务者身份只来自登录 token，客户身份只来自 referralCode 反查，"
+                    + "请求体中不存在 providerId。写入 complaints 表，管理后台可直接查看与处理。")
+    @PostMapping("/feedback")
+    public Result<PublicDto.FeedbackResultVO> feedback(@Valid @RequestBody PublicDto.FeedbackRequest request) {
+        return Result.ok(feedbackService.submit(request));
     }
 }

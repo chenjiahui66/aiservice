@@ -42,8 +42,11 @@ page {
   color: var(--text-1);
   font-size: 28rpx;
   line-height: 1.55;
-  /* 全局兜底：任何子元素溢出都不允许把整页带得左右晃 */
-  overflow-x: hidden;
+  /* ⚠️ 这里**不要**给 page 加 overflow-x/overflow-y。
+     根元素一旦设置 overflow，按 CSS 规范另一轴会从 visible 计算为 auto，
+     等于改写了微信页面根滚动容器的行为；部分基础库版本下会把内容裁掉，
+     表现为「白屏 + 只有原生 tabbar」（tabbar 不受 page 样式影响，故照常显示）。
+     防横向滑动的职责交给下面的 .page（普通 view，无此副作用）。 */
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC',
     'Microsoft YaHei', sans-serif;
 }

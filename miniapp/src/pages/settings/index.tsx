@@ -81,6 +81,13 @@ export default function SettingsPage() {
           <Text>我的推广</Text>
           <Text className='setting-item__value'>推广码与统计 ›</Text>
         </View>
+        <View
+          className='setting-item'
+          onClick={() => Taro.navigateTo({ url: '/pages/feedback/index' })}
+        >
+          <Text>意见反馈</Text>
+          <Text className='setting-item__value'>功能建议与问题反馈 ›</Text>
+        </View>
       </View>
 
       <View className='setting-group'>

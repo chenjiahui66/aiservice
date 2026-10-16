@@ -17,6 +17,38 @@ export type OrderStatus =
 /** 小程序码模式：DEV = 开发降级码，不是真实微信小程序码 */
 export type QrMode = 'REAL' | 'DEV'
 
+// ---------------------------------------------------------------- 意见反馈
+
+/**
+ * 反馈类型，取值必须与后端 ComplaintType 枚举一致，
+ * 否则管理后台 ComplaintView 无法正确归类。
+ */
+export type ComplaintType = 'COMPLAINT' | 'FEEDBACK' | 'VIOLATION'
+
+export type ComplaintStatus = 'PENDING' | 'PROCESSING' | 'CLOSED'
+
+/**
+ * 意见反馈提交请求。
+ *
+ * ⚠️ 不含 providerId：服务者身份由后端在检测到登录态时自行取，
+ * 客户身份则通过 referralCode 反查，前端不指定归属。
+ */
+export interface FeedbackRequest {
+  type: ComplaintType
+  content: string
+  customerName?: string
+  customerPhone?: string
+  /** 客户扫码入口进入时携带，用于反查服务者 */
+  referralCode?: string
+}
+
+export interface FeedbackResult {
+  id: number
+  status: ComplaintStatus
+  statusLabel: string
+  createdAt: string
+}
+
 /** 表单字段类型，由后端 formFields 配置决定，前端只负责渲染 */
 export type FormFieldType =
   | 'text'

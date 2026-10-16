@@ -16,7 +16,7 @@ spring:
     # ⚠️ characterEncoding 必须是大写 UTF-8：小写 utf8 在 Connector/J 里指向 utf8mb3，
 #    与表的 utf8mb4 不匹配会导致中文双重编码（ä¸œé—¨…）。
 #    详见 application-prod.yml 中的完整说明。
-url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:neighborhood}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:neighborhood}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
     username: ${DB_USERNAME:app_user}
     password: ${DB_PASSWORD:}
     hikari:

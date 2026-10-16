@@ -110,4 +110,52 @@ public final class PublicDto {
         private String providerDisplayName;
         private String message;
     }
+
+    // ---------------- 意见反馈 ----------------
+
+    @Data
+    public static class FeedbackRequest {
+
+        /**
+         * 反馈类型，取值须为 {@code ComplaintType} 的枚举名：
+         * {@code FEEDBACK} 功能建议 / {@code COMPLAINT} 服务投诉 / {@code VIOLATION} 违规举报。
+         *
+         * <p>刻意用 {@code String} 接收而非直接用枚举：非法值由业务层翻译成
+         * {@code 40000} 参数错误，保持与项目统一的响应信封；
+         * 若直接交给 Jackson 反序列化，会抛出与信封结构不一致的 400。</p>
+         */
+        @NotBlank(message = "请选择反馈类型")
+        @Size(max = 32)
+        private String type;
+
+        /** 反馈正文，必填。 */
+        @NotBlank(message = "请填写反馈内容")
+        @Size(max = 500, message = "反馈内容最多 500 字")
+        private String content;
+
+        /** 称呼，选填，仅用于回访。 */
+        @Size(max = 32)
+        private String customerName;
+
+        /** 联系电话，选填，仅用于回访。 */
+        @Pattern(regexp = "^$|^1[3-9]\\d{9}$", message = "手机号格式不正确")
+        private String customerPhone;
+
+        /**
+         * 推广码，选填。客户从某服务者主页进入时携带，用于把反馈挂到该服务者名下。
+         *
+         * <p>本接口刻意<b>不接受 providerId</b>：服务者身份只来自登录 token，
+         * 客户身份只来自推广码反查，客户端无从指定归属。</p>
+         */
+        @Size(max = 64)
+        private String referralCode;
+    }
+
+    @Data
+    public static class FeedbackResultVO {
+        private Long id;
+        private String status;
+        private String statusLabel;
+        private String createdAt;
+    }
 }

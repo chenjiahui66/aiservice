@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS `order_logs` (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `complaints` (
   `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `provider_id`    BIGINT UNSIGNED NOT NULL COMMENT '被投诉/被反馈的服务者',
+  `provider_id`    BIGINT UNSIGNED NULL COMMENT '被投诉/被反馈的服务者；平台级意见箱意见（无归属）允许为 NULL',
   `order_id`       BIGINT UNSIGNED NULL,
   `customer_name`  VARCHAR(50)  NULL,
   `customer_phone` VARCHAR(20)  NULL,

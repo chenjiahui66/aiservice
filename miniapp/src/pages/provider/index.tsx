@@ -117,6 +117,19 @@ export default function ProviderHomePage() {
                 <Text>{data.disclaimer}</Text>
               </View>
             )}
+
+            <View
+              className='feedback-entry'
+              onClick={() =>
+                Taro.navigateTo({
+                  url: `/pages/feedback/index?referralCode=${encodeURIComponent(referralCode)}`
+                })
+              }
+            >
+              <Text className='feedback-entry__title'>意见反馈</Text>
+              <Text className='feedback-entry__desc'>有建议或遇到问题？点这里告诉我们</Text>
+              <Text className='feedback-entry__arrow'>›</Text>
+            </View>
           </View>
         )}
       </PageState>
