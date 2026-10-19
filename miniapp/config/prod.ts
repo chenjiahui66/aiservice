@@ -52,7 +52,31 @@ const config: UserConfigExport<'webpack5'> = {
     webpackChain(chain) {
       chain.merge({
         optimization: {
-          minimize: true
+          minimize: true,
+          // ⚠️⚠️ 这两项**必须关掉**，否则生产包一打开就白屏。
+          //
+          // 症状：`npm run dev:weapp` 正常，`npm run build:weapp` 白屏，
+          //        且 Console 里没有业务报错，只有 wx 引擎层的静默失败。
+          //
+          // 原因：Taro 的默认优化会开 splitChunks + runtimeChunk，把代码拆成
+          //        runtime / common / vendors / taro 四个独立 js。webpack 产物之间
+          //        用 **CommonJS `require()`** 互连，于是 app.js 开头就是：
+          //            require("./common"),require("./vendors"),
+          //            require("./taro"),require("./runtime"),...
+          //        而**微信小程序运行时没有 require 这个全局对象**，第一行就抛
+          //        `require is not defined`，整个 App 起不来 → 纯白屏。
+          //
+          // 为什么 dev 不炸：dev 模式不做这套 chunk 拆分，产物是单文件，
+          //        走 wx.webpackJsonp 机制（微信原生支持）而非 CommonJS。
+          //
+          // 关掉后的代价：所有代码进一个 app.js，**无法并行加载**，
+          // 首屏字节数略增。对本项目（几十 KB 量级）完全可接受，
+          // 换来的是生产包一定能跑起来。
+          //
+          // 如果将来包体真的大到需要分包，正确做法是用小程序原生分包
+          // （app.config.ts 的 subPackages），而不是打开 webpack 的 splitChunks。
+          splitChunks: false,
+          runtimeChunk: false
         }
       })
     }
