@@ -78,7 +78,19 @@
 }
 
 .form-item__control {
+  /* ⚠️ 必须写 box-sizing: border-box。
+   * 小程序的 input 是原生组件，默认按 content-box 计算宽度，
+   * 于是 width:100% 之外还要再加 padding + border，
+   * 输入框会比卡片边框宽出一截（右侧溢出边框）。
+   *
+   * 配套必须给 min-height：切到 border-box 后，高度改由 min-height 决定，
+   * 光靠 padding + line-height 撑不出原来那么高的高度，
+   * 表现出来就是「输入框瘪了一块」。用 min-height 而不是 height，
+   * 这样聚焦时内容变多也不会被截断。
+   */
+  box-sizing: border-box;
   width: 100%;
+  min-height: 88rpx;
   background: var(--surface);
   border: 1rpx solid var(--line-strong);
   border-radius: var(--radius-md);
@@ -88,8 +100,9 @@
   line-height: 1.5;
 }
 
+/* 文本域要多行高度，单独覆盖上面那个单行的 min-height */
 .form-item__control--textarea {
-  min-height: 150rpx;
+  min-height: 180rpx;
 }
 
 .form-item__control--error {
@@ -541,6 +554,7 @@
 }
 
 .prompt {
+  box-sizing: border-box;
   width: 100%;
   max-width: 620rpx;
   background: var(--surface);

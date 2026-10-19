@@ -18,7 +18,10 @@ backend/target/
 node_modules/
 dist/
 dist-ssr/
-build/
+# 只忽略仓库根的 build/（前端产物），不能写成 build/ ——
+# miniapp/build/ 里是 apiBase.ts，存着后端地址注入值，必须入库，
+# 否则换台机器构建就会找不到它，BASE_URL 直接变 undefined。
+/build/
 .vite/
 *.local
 npm-debug.log*

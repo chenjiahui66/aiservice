@@ -7,6 +7,16 @@
  */
 
 page {
+  /* 全局尺寸基准。
+   *
+   * ⚠️ 必须统一设 border-box：小程序的 input / textarea 是**原生组件**，
+   *    默认按 content-box 算宽度，于是 `width:100%` 之外还会再加
+   *    padding + border，输入框会比外层卡片边框宽出一截（右侧溢出）。
+   *    之前给表单加边框时就暴露了这个现象，逐个补 box-sizing 容易漏，
+   *    在这里一次性兜住。
+   */
+  box-sizing: border-box;
+
   /* 品牌色 */
   --brand: #2b6cf0;
   --brand-weak: #eaf1ff;

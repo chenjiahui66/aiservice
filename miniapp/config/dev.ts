@@ -32,6 +32,7 @@ const config: UserConfigExport<'webpack5'> = {
   defineConstants: {
     'process.env.TARO_APP_API_BASE': JSON.stringify(
       process.env.TARO_APP_API_BASE || 'http://localhost:8080'
+      //'https://community.aindgc.com'
     )
   },
   mini: {
