@@ -25,7 +25,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#ffffff',
-    navigationBarTitleText: '邻里服务管家',
+    navigationBarTitleText: '邻小来',
     navigationBarTextStyle: 'black'
   },
 

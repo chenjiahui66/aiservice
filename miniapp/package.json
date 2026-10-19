@@ -2,7 +2,7 @@
   "name": "neighbor-service-miniapp",
   "version": "1.0.0",
   "private": true,
-  "description": "邻里服务管家 · Taro 4 微信小程序端（服务者工作台 + 客户扫码预约）",
+  "description": "邻小来 · Taro 4 微信小程序端（服务者工作台 + 客户扫码预约）",
   "templateInfo": {
     "name": "default",
     "typescript": true,

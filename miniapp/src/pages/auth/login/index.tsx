@@ -43,7 +43,7 @@ export default function LoginPage() {
 
   return (
     <View className='auth'>
-      <View className='auth__brand'>邻里服务管家</View>
+      <View className='auth__brand'>邻小来</View>
       <View className='auth__sub'>服务者登录 · 管理你的预约与客户</View>
 
       <View className='card'>
