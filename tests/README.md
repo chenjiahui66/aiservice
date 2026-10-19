@@ -1,6 +1,6 @@
 # 测试与校验脚本
 
-三个脚本，用途不同，都**不使用假数据、不内置凭据**。
+五个脚本，用途不同，都**不使用假数据、不内置凭据**。
 
 | 脚本 | 需要什么 | 作用 |
 |---|---|---|
@@ -9,6 +9,7 @@
 | `check-deploy-config.sh` | Docker CLI（**不需要引擎**） | 离线校验 `deploy/` 能否起得来（29 项） |
 | `verify-package.sh` | Docker CLI + Node/Python | 部署包落地验证：解压后逐项复验 |
 | `check-manual.sh` | 无（纯文本检查） | 部署手册里 50 段命令的语法与变量自洽性 |
+| `check-encoding.cjs` | 无（纯静态检查） | 中文编码回归：JDBC 字符集、构建编码、SQL 字符集（22 项） |
 
 ---
 
@@ -149,3 +150,46 @@ bash tests/verify-package.sh         # Git Bash / Linux
 > 网关容器。花括号不配对、或 443 块引用了还没签发的证书，
 > `nginx -t` 都会失败，重启后**整个网关起不来，线上站点一起中断**。
 > 这类问题必须在上传前离线拦掉。
+
+---
+
+## 6. `check-encoding.cjs` —— 中文编码回归
+
+纯静态检查，不需要数据库、不需要 Docker。
+
+```bat
+node tests\check-encoding.cjs
+```
+
+检查 5 组共 22 项：
+
+1. **JDBC 连接串** —— `characterEncoding` 必须是**大写 `UTF-8`**
+2. **构建编码** —— `pom.xml` 锁定 `project.build.sourceEncoding` 与 compiler `encoding`
+3. **容器运行时** —— `Dockerfile.prebuilt` 有 `-Dfile.encoding=UTF-8`，注释无双重编码
+4. **SQL 文件** —— 无 BOM、内容未双重编码、无 GBK/UTF-8 混淆
+5. **建表字符集** —— 13 张表全部 `utf8mb4`（不能有 `utf8mb3`）
+
+### 它防的是什么
+
+`characterEncoding=utf8`（小写）看起来完全正常，但 MySQL 字符集名里
+`utf8` 和 `utf8mb3` 是**两个不同的索引**，`utf8` 保留为 3 字节版本；
+Java 的规范名是大写 `UTF-8`，才映射到 `utf8mb4`。
+这类配置错误在配置文件里肉眼难辨，只有真数据写进去才炸。
+
+### 打包脚本已内置
+
+`scripts\build-backend.cmd` 在 `mvn package` 之后会自动跑这个检查，
+不通过就中止并提示「jar 不要上传」。
+
+---
+
+## 打包命令
+
+后端 jar 一键打包（**必须带 `clean`**，否则残留的旧 class 会让
+「代码改了但 jar 没变」，这正是上次 jar 落后于源码的原因）：
+
+```bat
+scripts\build-backend.cmd
+```
+
+它做三件事：`mvn -DskipTests clean package` → 跑编码检查 → 打印产物 MD5。
