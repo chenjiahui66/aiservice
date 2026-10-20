@@ -5,7 +5,21 @@ import PageState from '@/components/PageState'
 import { fetchProviderHome } from '@/api/public'
 import { usePageData, toMessage } from '@/hooks/usePageData'
 import { getLaunchReferralCode, getQueryParam, makePhoneCall } from '@/platform'
+import { BizCode } from '@/types/api'
 import type { ProviderHomeVO, ServiceItem } from '@/types/domain'
+
+/**
+ * 客户自己解决不了、点「重新加载」也不会变的业务错误。
+ * 这类错误必须换掉通用报错页：让客户反复重试只会让人以为是自己手机的问题。
+ */
+const BLOCKED_DESC: Record<number, string> = {
+  [BizCode.REFERRAL_NOT_FOUND]: '推广码不存在，请确认是否扫对了二维码',
+  [BizCode.REFERRAL_DISABLED]: '该服务者的推广码已停用',
+  [BizCode.PROVIDER_NOT_AUDITED]: '该服务者还在平台审核中，通过后主页才会开放',
+  [BizCode.PROVIDER_REJECTED]: '该服务者未通过平台审核',
+  [BizCode.PROVIDER_DISABLED]: '该服务者已暂停服务',
+  [BizCode.PAGE_CLOSED]: '该服务者暂未开放服务主页，可以稍后再来看看'
+}
 
 /**
  * 服务主页展示页（客户扫码落地页，独立路径，不需要进入服务者工作台）。
@@ -27,7 +41,8 @@ export default function ProviderHomePage() {
     return fetchProviderHome(referralCode)
   }, [referralCode])
 
-  const { data, loading, error, reload } = usePageData<ProviderHomeVO>(fetcher, [referralCode])
+  const { data, loading, error, errorCode, reload } = usePageData<ProviderHomeVO>(fetcher, [referralCode])
+  const blocked = errorCode != null ? BLOCKED_DESC[errorCode] : undefined
 
   const goBooking = (item: ServiceItem) => {
     Taro.navigateTo({
@@ -40,7 +55,9 @@ export default function ProviderHomePage() {
       <PageState
         loading={loading}
         error={error}
-        onRetry={reload}
+        errorTitle={blocked}
+        errorDesc={blocked ? '可以稍后再来看看，或直接联系服务者' : undefined}
+        onRetry={blocked ? undefined : reload}
       >
         {data && (
           <View>

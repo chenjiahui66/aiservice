@@ -111,6 +111,46 @@ if (fs.existsSync(appJsonPath)) {
 ok(missingPages.length === 0,
    `app.json 声明的页面产物齐全${missingPages.length ? '，缺失：' + missingPages.slice(0, 5).join(', ') : ''}`);
 
+// 8. 🔴 推广页必须在主页关闭时给出醒目提示 + 去开启的入口
+//
+//    背景：推广码在服务者**注册时**就发下去了，主页一旦是关的，
+//    客户扫码只会拿到 41008「该服务主页已关闭」。而「开启主页」开关
+//    藏在「编辑主页」里，服务者最容易忽略 —— 所以推广页必须显式警告。
+const referralJs = path.join(DIST, 'pages', 'referral', 'index.js');
+if (fs.existsSync(referralJs)) {
+  const t = fs.readFileSync(referralJs, 'utf8');
+  ok(t.includes('notice--danger'), '推广页含「主页未开启」的醒目告警样式');
+  ok(hasText(t, '去开启服务主页'), '推广页含「去开启服务主页」入口');
+} else {
+  ok(false, '找不到推广页产物 pages/referral/index.js');
+}
+
+// 9. 🔴 客户主页必须对 41008 单独处理，不能只甩一句「重新加载」
+//
+//    主页关闭是客户自己解决不了的状态，让他反复点重试只会以为是自己手机的问题。
+const providerJs = path.join(DIST, 'pages', 'provider', 'index.js');
+if (fs.existsSync(providerJs)) {
+  const t = fs.readFileSync(providerJs, 'utf8');
+  ok(t.includes('41008'), '客户主页含 41008 业务码的专门处理');
+  ok(hasText(t, '暂未开放服务主页'), '客户主页含可读文案，而不是让客户干点重试');
+} else {
+  ok(false, '找不到客户主页产物 pages/provider/index.js');
+}
+
+/**
+ * 产物里的中文会被转义成 \uXXXX，检查时要两种写法都认。
+ */
+function hasText(t, s) {
+  if (t.includes(s)) return true;
+  const escaped = Array.from(s)
+    .map((ch) => {
+      const code = ch.charCodeAt(0);
+      return code > 127 ? '\\u' + code.toString(16).padStart(4, '0') : ch;
+    })
+    .join('');
+  return t.includes(escaped);
+}
+
 console.log();
 console.log(fail === 0 ? '[PASS] 小程序产物检查通过' : `[FAIL] ${fail} 项未通过`);
 process.exit(fail === 0 ? 0 : 1);

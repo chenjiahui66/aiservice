@@ -5,6 +5,12 @@ interface PageDataState<T> {
   data: T | null
   loading: boolean
   error: string | null
+  /**
+   * 业务错误码；网络异常 / 非 BizError 时为 null。
+   * 页面可据此区分「重试有用」（网络抖动）和「重试没用」
+   * （例如 41008 主页已关闭 —— 客户点多少次重试都没用）。
+   */
+  errorCode: number | null
   reload: () => Promise<void>
   setData: (updater: T | ((prev: T | null) => T)) => void
 }
@@ -18,6 +24,7 @@ export function usePageData<T>(fetcher: () => Promise<T>, deps: unknown[] = []):
   const [data, setDataState] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<number | null>(null)
   const alive = useRef(true)
 
   useEffect(() => {
@@ -30,6 +37,7 @@ export function usePageData<T>(fetcher: () => Promise<T>, deps: unknown[] = []):
   const reload = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setErrorCode(null)
     try {
       const result = await fetcher()
       if (!alive.current) return
@@ -37,6 +45,7 @@ export function usePageData<T>(fetcher: () => Promise<T>, deps: unknown[] = []):
     } catch (e) {
       if (!alive.current) return
       setError(toMessage(e))
+      setErrorCode(e instanceof BizError ? e.code : null)
       setDataState(null)
     } finally {
       if (alive.current) setLoading(false)
@@ -53,7 +62,7 @@ export function usePageData<T>(fetcher: () => Promise<T>, deps: unknown[] = []):
     setDataState((prev) => (typeof updater === 'function' ? (updater as (p: T | null) => T)(prev) : updater))
   }, [])
 
-  return { data, loading, error, reload, setData }
+  return { data, loading, error, errorCode, reload, setData }
 }
 
 /** 把异常转换成可展示的文案 */

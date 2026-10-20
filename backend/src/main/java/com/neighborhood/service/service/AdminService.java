@@ -14,6 +14,7 @@ import com.neighborhood.service.entity.OperationLog;
 import com.neighborhood.service.entity.Order;
 import com.neighborhood.service.entity.Provider;
 import com.neighborhood.service.entity.ServiceItem;
+import com.neighborhood.service.entity.ServicePage;
 import com.neighborhood.service.entity.SystemSetting;
 import com.neighborhood.service.entity.User;
 import com.neighborhood.service.enums.AuditStatus;
@@ -26,6 +27,7 @@ import com.neighborhood.service.mapper.OperationLogMapper;
 import com.neighborhood.service.mapper.OrderMapper;
 import com.neighborhood.service.mapper.ProviderMapper;
 import com.neighborhood.service.mapper.ServiceItemMapper;
+import com.neighborhood.service.mapper.ServicePageMapper;
 import com.neighborhood.service.mapper.SystemSettingMapper;
 import com.neighborhood.service.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +59,7 @@ public class AdminService {
     private final OrderMapper orderMapper;
     private final CustomerMapper customerMapper;
     private final ServiceItemMapper serviceItemMapper;
+    private final ServicePageMapper servicePageMapper;
     private final ComplaintMapper complaintMapper;
     private final OperationLogMapper operationLogMapper;
     private final SystemSettingMapper systemSettingMapper;
@@ -179,7 +182,12 @@ public class AdminService {
     /**
      * 审核服务者。
      *
-     * <p>审核通过只解决平台侧准入；服务者能否公开展示主页还取决于主页是否启用。</p>
+     * <p>审核通过代表平台已允许该服务者对外提供服务，因此<b>首次</b>审核通过时会顺带开启其服务主页：
+     * 客户扫码走的是推广码，推广码在注册时就已分配，如果主页仍是关闭状态，
+     * 客户扫到的只会是 41008「该服务主页已关闭」，而服务者自己往往不知道要去开这个开关。</p>
+     *
+     * <p>只处理 PENDING → APPROVED 这一跳：对已通过审核的服务者重复点「通过」不会重新打开
+     * 他自己手动关闭的主页。</p>
      */
     @Transactional(rollbackFor = Exception.class)
     public AdminDto.ProviderListVO audit(Long providerId, AdminDto.AuditRequest req) {
@@ -200,8 +208,29 @@ public class AdminService {
         }
         providerMapper.updateById(update);
 
+        boolean firstApproval = target == AuditStatus.APPROVED
+                && (p.getAuditStatus() == null || p.getAuditStatus() == AuditStatus.PENDING);
+        if (firstApproval) {
+            enableHomepageIfClosed(providerId);
+        }
+
         log.info("管理员审核服务者 {} -> {}，意见：{}", providerId, target, req.getRemark());
         return toProviderListVO(providerMapper.selectById(providerId));
+    }
+
+    /** 首次审核通过时开启服务主页；主页不存在或本来就开着则不动。 */
+    private void enableHomepageIfClosed(Long providerId) {
+        ServicePage page = servicePageMapper.selectOne(Wrappers.<ServicePage>lambdaQuery()
+                .eq(ServicePage::getProviderId, providerId)
+                .last("LIMIT 1"));
+        if (page == null || page.getEnabled() == EnabledStatus.ENABLED) {
+            return;
+        }
+        ServicePage update = new ServicePage();
+        update.setId(page.getId());
+        update.setEnabled(EnabledStatus.ENABLED);
+        servicePageMapper.updateById(update);
+        log.info("审核通过，服务者 {} 的主页已自动开启", providerId);
     }
 
     /** 启用 / 停用服务者。停用后其推广码将无法再被客户访问与下单。 */

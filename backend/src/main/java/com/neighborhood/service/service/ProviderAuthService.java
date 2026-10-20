@@ -81,13 +81,18 @@ public class ProviderAuthService {
             throw BizException.of(ResultCode.USERNAME_EXISTS);
         }
 
-        // 默认服务主页骨架：服务者填内容后才能对外展示
+        // 默认服务主页骨架。
+        // ⚠️ 主页默认「开启」而不是关闭：注册的同时就分配了推广码（见下方 seedReferralCode），
+        // 如果主页默认关闭，服务者拿到的二维码必然让客户撞上 41008「该服务主页已关闭」，
+        // 而「开启主页」开关藏在「编辑主页」里，服务者通常根本不知道要去点开 —— 死结。
+        // 对外真正的准入门禁是平台审核：未通过审核时 PublicHomeService 会先拦在 41005，
+        // 根本走不到主页开关这一层，所以这里默认开启不会让未审核的服务者对外曝光。
         ServicePage page = new ServicePage();
         page.setProviderId(provider.getId());
         page.setDisplayName(req.getRealName());
         page.setServiceArea(req.getServiceArea());
         page.setContactVisible(EnabledStatus.ENABLED);
-        page.setEnabled(EnabledStatus.DISABLED);
+        page.setEnabled(EnabledStatus.ENABLED);
         servicePageMapper.insert(page);
 
         // 注册即分配推广码，保证「注册后立刻能拿到自己的码」

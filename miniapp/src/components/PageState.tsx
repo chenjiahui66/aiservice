@@ -5,6 +5,10 @@ interface PageStateProps {
   loading?: boolean
   /** 请求失败信息 */
   error?: string | null
+  /** 错误标题：不传则直接显示 error 文案 */
+  errorTitle?: string
+  /** 错误补充说明 */
+  errorDesc?: string
   /** 是否空数据 */
   empty?: boolean
   emptyTitle?: string
@@ -23,6 +27,8 @@ interface PageStateProps {
 export default function PageState({
   loading,
   error,
+  errorTitle,
+  errorDesc,
   empty,
   emptyTitle = '暂无数据',
   emptyDesc,
@@ -53,8 +59,8 @@ export default function PageState({
     return (
       <View className='state'>
         <Text className='state__glyph'>⚠</Text>
-        <Text className='state__title'>{error}</Text>
-        {!!emptyDesc && <Text className='state__desc'>{emptyDesc}</Text>}
+        <Text className='state__title'>{errorTitle || error}</Text>
+        {!!errorDesc && <Text className='state__desc'>{errorDesc}</Text>}
         {!!onRetry && (
           <Button className='btn btn--ghost state__retry' onClick={onRetry}>
             重新加载

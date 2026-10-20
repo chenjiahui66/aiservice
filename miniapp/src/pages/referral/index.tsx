@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Image, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import PageState from '@/components/PageState'
-import { fetchReferral, fetchReferralStats, regenerateQr } from '@/api/provider'
+import { fetchReferral, fetchReferralStats, fetchMyPage, regenerateQr } from '@/api/provider'
 import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { absoluteUrl, copyToClipboard, isWeapp } from '@/platform'
@@ -20,8 +20,17 @@ export default function ReferralPage() {
   const [tab, setTab] = useState<'referral' | 'stats'>('referral')
 
   const fetcher = useCallback(async () => {
-    const [info, stats] = await Promise.all([fetchReferral(), fetchReferralStats()])
-    return { info, stats }
+    // fetchMyPage 单独兜底：它只是用来判断要不要显示「主页未开启」告警，
+    // 万一它失败，不能把整个推广码面板一起拖垮。失败时按「已开启」处理，
+    // 宁可少一次告警，也不要误报把服务者吓一跳。
+    const [info, stats, pageEnabled] = await Promise.all([
+      fetchReferral(),
+      fetchReferralStats(),
+      fetchMyPage()
+        .then((p) => p.enabled)
+        .catch(() => true)
+    ])
+    return { info, stats, pageEnabled }
   }, [])
   const { data, loading, error, reload } = usePageData(fetcher, [])
 
@@ -44,7 +53,7 @@ export default function ReferralPage() {
 
       <PageState loading={loading} error={error} skeleton onRetry={reload}>
         {data && tab === 'referral' && (
-          <ReferralPanel info={data.info} onChanged={reload} />
+          <ReferralPanel info={data.info} pageEnabled={data.pageEnabled} onChanged={reload} />
         )}
         {data && tab === 'stats' && <StatsPanel stats={data.stats} />}
       </PageState>
@@ -77,7 +86,15 @@ export default function ReferralPage() {
 }
 
 /** 推广码 + 二维码 */
-function ReferralPanel({ info, onChanged }: { info: ReferralInfoVO; onChanged: () => void }) {
+function ReferralPanel({
+  info,
+  pageEnabled,
+  onChanged
+}: {
+  info: ReferralInfoVO
+  pageEnabled: boolean
+  onChanged: () => void
+}) {
   const [generating, setGenerating] = useState(false)
   const isDev = info.qrMode === 'DEV'
 
@@ -99,6 +116,25 @@ function ReferralPanel({ info, onChanged }: { info: ReferralInfoVO; onChanged: (
 
   return (
     <View>
+      {/* 主页关着 = 客户扫这个码只会看到「该服务主页已关闭」。
+          推广码是注册时就发出去的，服务者自己很容易忘记开这个开关，必须显式提醒。 */}
+      {!pageEnabled && (
+        <View className='notice notice--danger' style={{ marginBottom: '20rpx' }}>
+          <Text className='notice__icon'>⚠</Text>
+          <Text>服务主页当前是关闭状态，客户扫码会看到「该服务主页已关闭」，无法预约。</Text>
+        </View>
+      )}
+      {!pageEnabled && (
+        <View style={{ marginBottom: '20rpx' }}>
+          <Button
+            className='btn btn--block'
+            onClick={() => Taro.navigateTo({ url: '/pages/page-edit/index' })}
+          >
+            去开启服务主页
+          </Button>
+        </View>
+      )}
+
       <View className='card'>
         <View className='code-box'>
           <Text className='code-box__value'>{info.referralCode}</Text>

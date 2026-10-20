@@ -54,13 +54,19 @@ public class ServicePageService {
         ServicePage update = new ServicePage();
         update.setId(page.getId());
         update.setDisplayName(req.getDisplayName());
-        update.setAvatarUrl(req.getAvatarUrl());
+        // 头像没有上传入口，客户端不会带这个字段。
+        // 传 null 表示「本次不修改」，不能直接覆盖成 null 把已有头像擦掉。
+        if (req.getAvatarUrl() != null) {
+            update.setAvatarUrl(req.getAvatarUrl());
+        }
         update.setIntro(req.getIntro());
         update.setServiceArea(req.getServiceArea());
         update.setAvailableTime(req.getAvailableTime());
         update.setPriceDesc(req.getPriceDesc());
         update.setServiceRules(req.getServiceRules());
-        update.setContactVisible(req.getContactVisible() ? EnabledStatus.ENABLED : EnabledStatus.DISABLED);
+        // contactVisible 允许为 null（= 不修改），不能直接拆箱
+        update.setContactVisible(Boolean.TRUE.equals(req.getContactVisible())
+                ? EnabledStatus.ENABLED : EnabledStatus.DISABLED);
         // 展示联系方式时必须有号码，否则等于对外显示一个打不通的入口
         update.setContactPhone(req.getContactPhone());
         if (req.getEnabled() != null) {
