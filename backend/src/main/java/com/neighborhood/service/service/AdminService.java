@@ -157,6 +157,8 @@ public class AdminService {
         vo.setAuditStatus(p.getAuditStatus() == null ? null : p.getAuditStatus().name());
         vo.setAuditStatusLabel(p.getAuditStatus() == null ? null : p.getAuditStatus().getLabel());
         vo.setEnabled(p.getEnabled() == null ? null : p.getEnabled().name());
+        ServicePage page = findServicePage(p.getId());
+        vo.setPageEnabled(page != null && page.getEnabled() == EnabledStatus.ENABLED);
         vo.setOrderCount(orderMapper.selectCount(Wrappers.<Order>lambdaQuery()
                 .eq(Order::getProviderId, p.getId())));
         vo.setCustomerCount(customerMapper.selectCount(Wrappers.<com.neighborhood.service.entity.Customer>lambdaQuery()
@@ -182,12 +184,12 @@ public class AdminService {
     /**
      * 审核服务者。
      *
-     * <p>审核通过代表平台已允许该服务者对外提供服务，因此<b>首次</b>审核通过时会顺带开启其服务主页：
+     * <p>审核通过代表平台已允许该服务者对外提供服务，因此会顺带开启其服务主页：
      * 客户扫码走的是推广码，推广码在注册时就已分配，如果主页仍是关闭状态，
      * 客户扫到的只会是 41008「该服务主页已关闭」，而服务者自己往往不知道要去开这个开关。</p>
      *
-     * <p>只处理 PENDING → APPROVED 这一跳：对已通过审核的服务者重复点「通过」不会重新打开
-     * 他自己手动关闭的主页。</p>
+     * <p>服务者平时自己关掉主页（「暂时不干了」）不受影响 —— 管理员不点审核，主页就保持他关的状态；
+     * 只有管理员主动点「审核通过」时才重新打开。管理后台「服务者状态管理」页另有主页开关可随时调整。</p>
      */
     @Transactional(rollbackFor = Exception.class)
     public AdminDto.ProviderListVO audit(Long providerId, AdminDto.AuditRequest req) {
@@ -208,9 +210,7 @@ public class AdminService {
         }
         providerMapper.updateById(update);
 
-        boolean firstApproval = target == AuditStatus.APPROVED
-                && (p.getAuditStatus() == null || p.getAuditStatus() == AuditStatus.PENDING);
-        if (firstApproval) {
+        if (target == AuditStatus.APPROVED) {
             enableHomepageIfClosed(providerId);
         }
 
@@ -218,11 +218,16 @@ public class AdminService {
         return toProviderListVO(providerMapper.selectById(providerId));
     }
 
-    /** 首次审核通过时开启服务主页；主页不存在或本来就开着则不动。 */
-    private void enableHomepageIfClosed(Long providerId) {
-        ServicePage page = servicePageMapper.selectOne(Wrappers.<ServicePage>lambdaQuery()
+    /** 查服务者的主页记录；没有主页记录返回 null。 */
+    private ServicePage findServicePage(Long providerId) {
+        return servicePageMapper.selectOne(Wrappers.<ServicePage>lambdaQuery()
                 .eq(ServicePage::getProviderId, providerId)
                 .last("LIMIT 1"));
+    }
+
+    /** 开启服务主页；主页不存在或本来就开着则不动。 */
+    private void enableHomepageIfClosed(Long providerId) {
+        ServicePage page = findServicePage(providerId);
         if (page == null || page.getEnabled() == EnabledStatus.ENABLED) {
             return;
         }
@@ -257,6 +262,34 @@ public class AdminService {
             u.setId(p.getUserId());
             u.setStatus(EnabledStatus.ENABLED);
             userMapper.updateById(u);
+        }
+        return toProviderListVO(providerMapper.selectById(providerId));
+    }
+
+    /**
+     * 开启 / 关闭服务主页。
+     *
+     * <p>主页开关决定客户扫码能不能看到内容：关闭时客户扫推广码只会拿到
+     * 41008「该服务主页已关闭」。正常情况下服务者自己在小程序里控制这个开关，
+     * 这里给管理员留一个兜底入口，用来处理「服务者自己没开」或「服务者联系不上了」的情况。</p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public AdminDto.ProviderListVO toggleHomepage(Long providerId, AdminDto.PageRequest req) {
+        Provider p = providerMapper.selectById(providerId);
+        if (p == null) {
+            throw BizException.of(ResultCode.PROVIDER_NOT_FOUND);
+        }
+        ServicePage page = findServicePage(providerId);
+        if (page == null) {
+            throw BizException.of(ResultCode.SYSTEM_ERROR, "该服务者尚未初始化服务主页");
+        }
+        boolean enable = Boolean.TRUE.equals(req.getEnabled());
+        if (page.getEnabled() != (enable ? EnabledStatus.ENABLED : EnabledStatus.DISABLED)) {
+            ServicePage update = new ServicePage();
+            update.setId(page.getId());
+            update.setEnabled(enable ? EnabledStatus.ENABLED : EnabledStatus.DISABLED);
+            servicePageMapper.updateById(update);
+            log.info("管理员{}服务者 {} 的服务主页", enable ? "开启" : "关闭", providerId);
         }
         return toProviderListVO(providerMapper.selectById(providerId));
     }

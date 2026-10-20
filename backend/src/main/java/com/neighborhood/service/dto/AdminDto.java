@@ -51,6 +51,11 @@ public final class AdminDto {
         private String auditStatusLabel;
         private String enabled;
         private String referralCode;
+        /**
+         * 服务主页是否对外开放。
+         * null = 该服务者还没有主页记录（极少见，等同于未开放）。
+         */
+        private Boolean pageEnabled;
         private long orderCount;
         private long customerCount;
         private LocalDateTime createdAt;
@@ -84,6 +89,16 @@ public final class AdminDto {
     @Data
     public static class StatusRequest {
         @NotNull(message = "请指定状态")
+        private Boolean enabled;
+
+        @Size(max = 500)
+        private String reason;
+    }
+
+    /** 开启 / 关闭服务主页。 */
+    @Data
+    public static class PageRequest {
+        @NotNull(message = "请指定主页状态")
         private Boolean enabled;
 
         @Size(max = 500)

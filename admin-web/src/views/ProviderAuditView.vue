@@ -88,7 +88,8 @@ onMounted(load)
       <div>
         <h2 class="page__title">服务者审核详情</h2>
         <p class="page__desc">
-          审核结论会写入服务者的 auditStatus，并记录到操作日志。审核通过只代表平台侧准入，主页能否对外展示还取决于服务者主页自身是否启用。
+          审核结论会写入服务者的 auditStatus，并记录到操作日志。审核通过会同时开启该服务者的服务主页 ——
+          客户扫码走的是推广码，主页没开的话客户只会看到「该服务主页已关闭」。服务者自己关掉主页的，可在「服务者状态管理」里重新开启。
         </p>
       </div>
       <el-button @click="router.back()">返回</el-button>
@@ -130,6 +131,10 @@ onMounted(load)
                 {{ ENABLED_LABEL[detail.enabled] }}
               </el-tag>
               <span v-else class="text-muted">—</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="服务主页">
+              <el-tag v-if="detail.pageEnabled" size="small" type="success">开放中</el-tag>
+              <el-tag v-else size="small" type="info">已关闭</el-tag>
             </el-descriptions-item>
           </el-descriptions>
         </section>

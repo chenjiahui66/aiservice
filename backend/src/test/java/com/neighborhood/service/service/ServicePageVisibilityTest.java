@@ -52,8 +52,8 @@ import static org.mockito.Mockito.when;
  * <p>这里锁死三条规则，任何一条被改回去都必须让测试变红：</p>
  * <ol>
  *   <li>注册时主页默认开启；</li>
- *   <li>首次审核通过时自动开启主页（存量已注册但没开开关的服务者也能被救回来）；</li>
- *   <li>重复审核不会把服务者自己手动关掉的主页重新打开。</li>
+ *   <li>管理员点「审核通过」时确保主页开着（含存量已审核但主页关闭的服务者）；</li>
+ *   <li>管理端可以随时手动开启 / 关闭主页。</li>
  * </ol>
  */
 class ServicePageVisibilityTest {
@@ -142,12 +142,12 @@ class ServicePageVisibilityTest {
     }
 
     // ==================================================================
-    // 3. 重复审核不动已经关闭的主页
+    // 3. 重复审核也要确保主页开着
     // ==================================================================
 
     @Test
-    @DisplayName("对已通过审核的服务者重复审核，不重新打开他手动关闭的主页")
-    void reApprovalKeepsClosedHomepage() {
+    @DisplayName("重复点「审核通过」同样会确保主页开着：管理员点了通过就是允许他对外服务")
+    void reApprovalAlsoEnablesHomepage() {
         loginAsAdmin();
 
         ServicePageMapper servicePageMapper = mock(ServicePageMapper.class);
@@ -162,8 +162,59 @@ class ServicePageVisibilityTest {
         AdminDto.AuditRequest req = new AdminDto.AuditRequest();
         req.setApproved(true);
         req.setRemark("复核");
-        // 服务者此前已经是 APPROVED
+        // 服务者此前已经是 APPROVED，但主页是关的（存量脏数据）
         service.audit(25L, req);
+
+        ArgumentCaptor<ServicePage> captor = ArgumentCaptor.forClass(ServicePage.class);
+        verify(servicePageMapper).updateById(captor.capture());
+        assertEquals(EnabledStatus.ENABLED, captor.getValue().getEnabled(),
+                "存量服务者（已审核通过但主页关闭）必须能被管理员点一次「通过」救回来");
+    }
+
+    // ==================================================================
+    // 4. 管理端手动开启 / 关闭主页
+    // ==================================================================
+
+    @Test
+    @DisplayName("管理端可以手动开启 / 关闭服务主页")
+    void adminCanToggleHomepage() {
+        loginAsAdmin();
+
+        ServicePageMapper servicePageMapper = mock(ServicePageMapper.class);
+        ServicePage page = new ServicePage();
+        page.setId(7L);
+        page.setProviderId(25L);
+        page.setEnabled(EnabledStatus.DISABLED);
+        when(servicePageMapper.selectOne(any())).thenReturn(page);
+
+        AdminService service = newAdminService(servicePageMapper, AuditStatus.APPROVED);
+
+        AdminDto.PageRequest req = new AdminDto.PageRequest();
+        req.setEnabled(true);
+        service.toggleHomepage(25L, req);
+
+        ArgumentCaptor<ServicePage> captor = ArgumentCaptor.forClass(ServicePage.class);
+        verify(servicePageMapper).updateById(captor.capture());
+        assertEquals(EnabledStatus.ENABLED, captor.getValue().getEnabled());
+    }
+
+    @Test
+    @DisplayName("主页已经开着时，管理端再点开启不会产生多余的写操作")
+    void adminToggleHomepageIsIdempotent() {
+        loginAsAdmin();
+
+        ServicePageMapper servicePageMapper = mock(ServicePageMapper.class);
+        ServicePage page = new ServicePage();
+        page.setId(7L);
+        page.setProviderId(25L);
+        page.setEnabled(EnabledStatus.ENABLED);
+        when(servicePageMapper.selectOne(any())).thenReturn(page);
+
+        AdminService service = newAdminService(servicePageMapper, AuditStatus.APPROVED);
+
+        AdminDto.PageRequest req = new AdminDto.PageRequest();
+        req.setEnabled(true);
+        service.toggleHomepage(25L, req);
 
         verify(servicePageMapper, never()).updateById(any(ServicePage.class));
     }

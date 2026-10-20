@@ -25,13 +25,47 @@ const files = [];
 console.log('=== 产物检查 ===');
 console.log(`  js 文件: ${files.length} 个\n`);
 
-// 1. 不能有 process.env 残留
+// 0. 🔴 配置层护栏：dev 与 prod 两份配置都必须关掉 splitChunks / runtimeChunk
+//
+//    `taro build --type weapp`        → NODE_ENV=production → 走 config/prod.ts
+//    `taro build --type weapp --watch` → NODE_ENV=development → 走 config/dev.ts
+//    （即 npm run dev:weapp）
+//
+//    Taro 的默认优化会开 splitChunks + runtimeChunk，把代码拆成
+//    runtime / common / vendors / taro 四个 js，彼此用 CommonJS require() 互连。
+//    微信小程序运行时**没有 require 这个全局对象**，第一行就抛
+//    `require is not defined` → 纯白屏，且没有任何业务报错。
+//
+//    只在 prod.ts 里关过一次，结果就是「dev 好好的，一 build 上传就白屏」。
+//    现在两份配置都关，并且在这里断言 —— 以后再改漏一边会直接挂。
+const CONFIG_DIR = path.resolve(__dirname, '..', 'miniapp', 'config');
+for (const name of ['dev.ts', 'prod.ts']) {
+  const p = path.join(CONFIG_DIR, name);
+  if (!fs.existsSync(p)) {
+    ok(false, `找不到配置文件 ${name}`);
+    continue;
+  }
+  const t = fs.readFileSync(p, 'utf8');
+  ok(/splitChunks:\s*false/.test(t), `${name} 关掉了 splitChunks`);
+  ok(/runtimeChunk:\s*false/.test(t), `${name} 关掉了 runtimeChunk`);
+}
+
+// 1. 不能有未内联的 process.env.TARO_APP_* 残留
+//
+//    小程序运行时没有 process 对象，残留的 process.env.TARO_APP_XXX 会直接抛
+//    ReferenceError: process is not defined（构建能过，启动才炸）。
+//
+//    ⚠️ 只查 TARO_APP_ 前缀，且要先剥掉块注释：
+//      - Taro 框架自身会注入 process.env.NODE_ENV / TARO_ENV / FRAMEWORK，
+//        这些由框架在运行时提供，不是我们的问题；
+//      - dev/watch 产物不压缩，JSDoc 注释会原样留在产物里，
+//        request.ts 的注释里就写着 "process.env.TARO_APP_*"，直接全量查必然误报。
 let procHits = [];
 for (const f of files) {
-  const t = fs.readFileSync(f, 'utf8');
-  if (t.includes('process.env')) procHits.push(path.relative(DIST, f));
+  const t = stripBlockComments(fs.readFileSync(f, 'utf8'));
+  if (/process\.env\.TARO_APP_/.test(t)) procHits.push(path.relative(DIST, f));
 }
-ok(procHits.length === 0, `无 process.env 残留${procHits.length ? '：' + procHits.slice(0, 3).join(', ') : ''}`);
+ok(procHits.length === 0, `无未内联的 process.env.TARO_APP_* 残留${procHits.length ? '：' + procHits.slice(0, 3).join(', ') : ''}`);
 
 // 2. BASE_URL 必须是字面量，且等于线上域名
 let found = null, hitFiles = [];
@@ -139,16 +173,31 @@ if (fs.existsSync(providerJs)) {
 
 /**
  * 产物里的中文会被转义成 \uXXXX，检查时要两种写法都认。
+ *
+ * ⚠️ 十六进制有大小写两种输出：压缩后的产物（terser）用小写 \u53bb，
+ *    未压缩的 dev/watch 产物用大写 \u53BB。只试一种会误报。
  */
 function hasText(t, s) {
   if (t.includes(s)) return true;
-  const escaped = Array.from(s)
+  const lower = Array.from(s)
     .map((ch) => {
       const code = ch.charCodeAt(0);
       return code > 127 ? '\\u' + code.toString(16).padStart(4, '0') : ch;
     })
     .join('');
-  return t.includes(escaped);
+  if (t.includes(lower)) return true;
+  const upper = Array.from(s)
+    .map((ch) => {
+      const code = ch.charCodeAt(0);
+      return code > 127 ? '\\u' + code.toString(16).toUpperCase().padStart(4, '0') : ch;
+    })
+    .join('');
+  return t.includes(upper);
+}
+
+/** 剥掉 /* ... *\/ 块注释，避免 JSDoc 里的文字干扰内容检查。 */
+function stripBlockComments(t) {
+  return t.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 console.log();

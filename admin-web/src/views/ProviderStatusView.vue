@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { fetchProviders, setProviderStatus } from '@/api/admin'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { fetchProviders, setProviderPage, setProviderStatus } from '@/api/admin'
 import PageState from '@/components/PageState.vue'
 import {
   AUDIT_STATUS_LABEL,
@@ -31,6 +31,9 @@ const dialog = reactive({
   nextEnabled: true,
   reason: ''
 })
+
+/** 正在切换主页状态的服务者 id，用于按钮 loading */
+const pageBusyId = ref<number | null>(null)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -88,6 +91,38 @@ async function onConfirm(): Promise<void> {
   }
 }
 
+/**
+ * 开启 / 关闭服务主页。
+ *
+ * 主页关闭时，客户扫推广码只会拿到 41008「该服务主页已关闭」。
+ * 服务者自己在小程序里可以关（暂时不干了），这里只是管理员的兜底入口。
+ */
+async function togglePage(row: ProviderListVO, enable: boolean): Promise<void> {
+  if (pageBusyId.value != null) return
+  if (!enable) {
+    try {
+      await ElMessageBox.confirm(
+        '关闭后该服务者主页不再对外展示，客户扫码会提示「该服务主页已关闭」，确认关闭？',
+        '关闭服务主页',
+        { confirmButtonText: '确认关闭', cancelButtonText: '取消', type: 'warning' }
+      )
+    } catch {
+      return
+    }
+  }
+  pageBusyId.value = row.id
+  try {
+    const updated = await setProviderPage(row.id, { enabled: enable })
+    const idx = rows.value.findIndex((r) => r.id === updated.id)
+    if (idx >= 0) rows.value.splice(idx, 1, updated)
+    ElMessage.success(enable ? '已开启该服务者主页' : '已关闭该服务者主页')
+  } catch {
+    // 错误提示由拦截器统一处理
+  } finally {
+    pageBusyId.value = null
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -98,6 +133,7 @@ onMounted(load)
         <h2 class="page__title">服务者状态管理</h2>
         <p class="page__desc">
           停用会同步禁用其登录账号并立即失效推广码，客户无法再访问主页与下单；操作原因会写入审核备注与操作日志。
+          「服务主页」列控制的是客户扫码能不能看到内容：正常由服务者自己在小程序里开关，这里是管理员的兜底入口。
         </p>
       </div>
     </div>
@@ -148,6 +184,23 @@ onMounted(load)
                 {{ ENABLED_LABEL[row.enabled] }}
               </el-tag>
               <span v-else class="text-muted">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="服务主页" width="150">
+            <template #default="{ row }: { row: ProviderListVO }">
+              <div class="page-cell">
+                <el-tag v-if="row.pageEnabled" size="small" type="success">开放中</el-tag>
+                <el-tag v-else size="small" type="info">已关闭</el-tag>
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  :loading="pageBusyId === row.id"
+                  @click="togglePage(row, !row.pageEnabled)"
+                >
+                  {{ row.pageEnabled ? '关闭' : '开启' }}
+                </el-button>
+              </div>
             </template>
           </el-table-column>
           <el-table-column label="推广码" min-width="150">
@@ -253,5 +306,11 @@ onMounted(load)
 
 .status__form {
   margin-bottom: 12px;
+}
+
+.page-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

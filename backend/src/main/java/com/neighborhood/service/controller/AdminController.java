@@ -91,6 +91,20 @@ public class AdminController {
         return Result.ok(vo);
     }
 
+    @Operation(summary = "开启 / 关闭服务主页",
+            description = "主页关闭时，客户扫推广码只会拿到 41008「该服务主页已关闭」。"
+                    + "服务者自己关闭主页（暂时不干了）不需要管理员操作，这里只是兜底入口。")
+    @PutMapping("/providers/{id}/page")
+    public Result<AdminDto.ProviderListVO> togglePage(@PathVariable Long id,
+                                                       @Valid @RequestBody AdminDto.PageRequest request,
+                                                       HttpServletRequest servletRequest) {
+        var vo = adminService.toggleHomepage(id, request);
+        adminAuthService.writeLogFromRequest("服务者管理",
+                Boolean.TRUE.equals(request.getEnabled()) ? "开启主页" : "关闭主页",
+                String.valueOf(id), request.getReason(), servletRequest);
+        return Result.ok(vo);
+    }
+
     // ---------------- 服务项目 ----------------
 
     @Operation(summary = "服务项目模板列表")

@@ -80,6 +80,8 @@ export interface ProviderListVO {
   auditStatusLabel: string | null
   enabled: EnabledStatus | null
   referralCode: string | null
+  /** 服务主页是否对外开放；null = 尚未初始化主页 */
+  pageEnabled: boolean | null
   orderCount: number
   customerCount: number
   createdAt: string | null
@@ -101,6 +103,11 @@ export interface AuditRequest {
 }
 
 export interface StatusRequest {
+  enabled: boolean
+  reason?: string
+}
+
+export interface PageRequest {
   enabled: boolean
   reason?: string
 }

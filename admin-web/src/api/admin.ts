@@ -8,6 +8,7 @@ import type {
   OperationLogVO,
   OrderQuery,
   OrderVO,
+  PageRequest,
   ProviderListVO,
   ProviderQuery,
   ServiceItemSaveRequest,
@@ -58,6 +59,14 @@ export function setProviderStatus(
   payload: StatusRequest
 ): Promise<ProviderListVO> {
   return httpPost<ProviderListVO>(`/api/admin/providers/${id}/status`, payload)
+}
+
+/** PUT /api/admin/providers/{id}/page —— 开启 / 关闭服务主页 */
+export function setProviderPage(
+  id: number,
+  payload: PageRequest
+): Promise<ProviderListVO> {
+  return httpPut<ProviderListVO>(`/api/admin/providers/${id}/page`, payload)
 }
 
 // ---------------------------------------------------------------- 服务项目 / 主页模板
