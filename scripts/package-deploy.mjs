@@ -51,6 +51,7 @@ const mustExist = [
   ['容器内 nginx 配置', 'deploy/nginx/community-internal.conf'],
   ['环境变量样例', 'deploy/.env.example'],
   ['建表脚本', 'sql/schema.sql'],
+  ['数据库迁移脚本', 'deploy/migrate.sh'],
 ];
 
 console.log('[1/5] 前置检查');
@@ -180,7 +181,17 @@ const required = [
   'deploy/nginx/community-internal.conf',
   'sql/schema.sql',
   'sql/seed.sql',
+  'deploy/migrate.sh',
 ];
+// ⚠️ migrations 目录下的每个 .sql 都要在包里。
+//    漏掉 = 服务器上迁移无从执行 = 新表建不出来 = 功能上线即 500。
+//    这个目录是新增的，容易在调整白名单时被漏掉，所以逐个点名回验。
+const migrationFiles = fs.existsSync(`${ROOT}/deploy/migrations`)
+  ? fs.readdirSync(`${ROOT}/deploy/migrations`).filter((f) => f.endsWith('.sql'))
+  : [];
+for (const f of migrationFiles) {
+  required.push(`deploy/migrations/${f}`);
+}
 const set = new Set(listing.map((p) => p.replace(/^\.\//, '')));
 // 任何 .env 结尾的条目都算泄漏（.env.example 不以 .env 结尾，安全）
 const envLeaks = [...set].filter((p) => path.basename(p).endsWith('.env'));

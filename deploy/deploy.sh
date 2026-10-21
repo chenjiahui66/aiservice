@@ -214,9 +214,23 @@ fi
 
 # 数据库迁移：schema.sql 只在首次初始化时跑，已部署的环境新增表/列必须靠这一步，
 # 否则新功能上线即报表不存在
-if [ -f "$ROOT/deploy/migrate.sh" ]; then
+MIGRATE_SH="$ROOT/deploy/migrate.sh"
+MIGRATIONS_DIR="$ROOT/deploy/migrations"
+MIGRATION_COUNT=0
+[ -d "$MIGRATIONS_DIR" ] && MIGRATION_COUNT=$(find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.sql' | wc -l)
+
+if [ "$MIGRATION_COUNT" -gt 0 ]; then
+  # ⚠️ 有迁移文件却没有执行器 = 静默失败：脚本跳过、表建不出来，
+  #    后端接口上线即 500，现场还很难联想到「少传了一个文件」。
+  #    所以这里必须直接中止，而不是 warning 后继续。
+  [ -f "$MIGRATE_SH" ] || fail "deploy/migrations/ 下有 $MIGRATION_COUNT 个迁移脚本，但没有 deploy/migrate.sh。
+    两者必须成对上传，否则新表不会被创建，功能上线即报表不存在。
+    重新打部署包（node scripts/package-deploy.mjs）即可带上。"
+  info "执行数据库迁移（$MIGRATION_COUNT 个）"
+  bash "$MIGRATE_SH" || fail "数据库迁移失败，请检查 deploy/migrations/ 下的脚本"
+elif [ -f "$MIGRATE_SH" ]; then
   info "执行数据库迁移"
-  bash "$ROOT/deploy/migrate.sh" || fail "数据库迁移失败，请检查 deploy/migrations/ 下的脚本"
+  bash "$MIGRATE_SH" || fail "数据库迁移失败，请检查 deploy/migrations/ 下的脚本"
 fi
 
 # ⚠️ --build 只做「组装镜像」，Dockerfile.prebuilt 里没有编译阶段，不会跑 Maven。
