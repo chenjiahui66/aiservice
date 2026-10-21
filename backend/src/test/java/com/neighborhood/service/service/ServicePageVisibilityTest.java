@@ -1,5 +1,6 @@
 package com.neighborhood.service.service;
 
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.dto.AdminDto;
 import com.neighborhood.service.dto.AuthDto;
 import com.neighborhood.service.dto.ProviderDto;
@@ -94,15 +95,18 @@ class ServicePageVisibilityTest {
         }).when(providerMapper).insert(any(Provider.class));
 
         ProviderAuthService service = new ProviderAuthService(userMapper, providerMapper, servicePageMapper,
-                referralCodeMapper, passwordEncoder, jwtTokenProvider, jwtProperties, generator);
+                referralCodeMapper, mock(ConsentService.class), passwordEncoder, jwtTokenProvider,
+                jwtProperties, generator);
 
         AuthDto.RegisterRequest req = new AuthDto.RegisterRequest();
         req.setPhone("13800000001");
         req.setPassword("test123456");
         req.setRealName("张师傅");
         req.setServiceArea("阳光小区");
+        req.setConsentAgreed(true);
+        req.setPolicyVersion("v1.0");
 
-        service.register(req);
+        service.register(req, ConsentContext.empty());
 
         ArgumentCaptor<ServicePage> captor = ArgumentCaptor.forClass(ServicePage.class);
         verify(servicePageMapper).insert(captor.capture());

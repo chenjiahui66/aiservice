@@ -1,9 +1,12 @@
 package com.neighborhood.service.controller;
 
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.common.Result;
+import com.neighborhood.service.dto.AuthDto;
 import com.neighborhood.service.dto.OrderDto;
 import com.neighborhood.service.dto.ProviderDto;
 import com.neighborhood.service.security.DataScope;
+import com.neighborhood.service.service.ConsentService;
 import com.neighborhood.service.service.OrderService;
 import com.neighborhood.service.service.ProviderAuthService;
 import com.neighborhood.service.service.ReferralCodeService;
@@ -12,6 +15,7 @@ import com.neighborhood.service.service.ServicePageService;
 import com.neighborhood.service.dto.PublicDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -46,8 +50,26 @@ public class ProviderController {
     private final ServiceItemService serviceItemService;
     private final ReferralCodeService referralCodeService;
     private final OrderService orderService;
+    private final ConsentService consentService;
 
     // ---------------- 资料 ----------------
+
+    @Operation(summary = "提交协议同意记录",
+            description = "服务者在登录后补充同意《用户服务协议》《隐私政策》时调用。"
+                    + "记录含同意时间、协议版本、客户端 IP 与设备标识，可用于合规核查。")
+    @PostMapping("/consent")
+    public Result<Object> consent(@Valid @RequestBody AuthDto.ConsentRequest request,
+                                   HttpServletRequest servletRequest) {
+        consentService.record(
+                DataScope.currentProviderId(),
+                ConsentService.USER_TYPE_PROVIDER,
+                request.getSubjectType(),
+                null,
+                request.getPolicyVersion(),
+                Boolean.TRUE.equals(request.getAgreed()),
+                ConsentContext.from(servletRequest));
+        return Result.ok("已记录您的同意");
+    }
 
     @Operation(summary = "我的服务者资料（含审核状态）")
     @GetMapping("/profile")

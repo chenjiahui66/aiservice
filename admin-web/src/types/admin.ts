@@ -82,6 +82,10 @@ export interface ProviderListVO {
   referralCode: string | null
   /** 服务主页是否对外开放；null = 尚未初始化主页 */
   pageEnabled: boolean | null
+  /** 最近一次同意《用户服务协议》《隐私政策》的时间；null = 从未同意过 */
+  consentAt: string | null
+  /** 最近一次同意的协议版本号 */
+  policyVersion: string | null
   orderCount: number
   customerCount: number
   createdAt: string | null

@@ -1,11 +1,13 @@
 package com.neighborhood.service.controller;
 
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.common.Result;
 import com.neighborhood.service.dto.AuthDto;
 import com.neighborhood.service.service.AdminAuthService;
 import com.neighborhood.service.service.ProviderAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,16 +31,21 @@ public class AuthController {
     private final AdminAuthService adminAuthService;
 
     @Operation(summary = "服务者注册",
-            description = "注册后账号为「待审核」状态，需平台管理员审核通过后才能对外展示主页并接收预约。")
+            description = "注册后账号为「待审核」状态，需平台管理员审核通过后才能对外展示主页并接收预约。"
+                    + "必须先明示同意《用户服务协议》和《隐私政策」，同意记录会落库留证。")
     @PostMapping("/provider/register")
-    public Result<AuthDto.LoginResponse> register(@Valid @RequestBody AuthDto.RegisterRequest request) {
-        return Result.ok("注册成功，请等待平台审核", providerAuthService.register(request));
+    public Result<AuthDto.LoginResponse> register(@Valid @RequestBody AuthDto.RegisterRequest request,
+                                                  HttpServletRequest servletRequest) {
+        return Result.ok("注册成功，请等待平台审核",
+                providerAuthService.register(request, ConsentContext.from(servletRequest)));
     }
 
-    @Operation(summary = "服务者登录", description = "返回 token 与审核状态，前端据此跳转对应页面。")
+    @Operation(summary = "服务者登录", description = "返回 token 与审核状态，前端据此跳转对应页面。"
+            + "登录同样需要明示同意《用户服务协议》和《隐私政策》。")
     @PostMapping("/provider/login")
-    public Result<AuthDto.LoginResponse> providerLogin(@Valid @RequestBody AuthDto.LoginRequest request) {
-        return Result.ok(providerAuthService.login(request));
+    public Result<AuthDto.LoginResponse> providerLogin(@Valid @RequestBody AuthDto.ProviderLoginRequest request,
+                                                        HttpServletRequest servletRequest) {
+        return Result.ok(providerAuthService.login(request, ConsentContext.from(servletRequest)));
     }
 
     @Operation(summary = "平台管理员登录", description = "管理员账号体系独立于业务用户表。")

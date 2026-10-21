@@ -3,9 +3,11 @@ import { View, Text, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import PageState from '@/components/PageState'
 import FormField from '@/components/FormField'
+import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { fetchProviderHome, submitBooking } from '@/api/public'
 import { usePageData, toMessage } from '@/hooks/usePageData'
 import { getQueryParam, isWeapp } from '@/platform'
+import { POLICY_VERSION } from '@/constants/policy'
 import {
   buildInitialValues,
   parseBookingRules,
@@ -32,6 +34,8 @@ export default function BookingPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [privacyError, setPrivacyError] = useState('')
+  const [policyAgreed, setPolicyAgreed] = useState(false)
+  const [policyError, setPolicyError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<BookingResult | null>(null)
 
@@ -99,7 +103,14 @@ export default function BookingPage() {
       Taro.showToast({ title: '请先同意服务说明', icon: 'none' })
       return
     }
+    // 客户的姓名、手机号、地址属于个人信息，收集前必须取得明示同意
+    if (!policyAgreed) {
+      setPolicyError('请先阅读并同意《隐私政策》')
+      Taro.showToast({ title: '请先同意隐私政策', icon: 'none' })
+      return
+    }
     setPrivacyError('')
+    setPolicyError('')
 
     // 服务项目以当前选择的项目为准（表单里已不再重复渲染 serviceItem）
     const pickedItemId = activeItem.id
@@ -118,6 +129,7 @@ export default function BookingPage() {
       serviceDesc: String(values.serviceDesc || '').trim() || undefined,
       remark: String(values.remark || '').trim() || undefined,
       privacyAccepted: true,
+      policyVersion: POLICY_VERSION,
       channel: isWeapp() ? 'WECHAT_MOMENTS' : 'DIRECT'
     }
 
@@ -243,6 +255,20 @@ export default function BookingPage() {
                   )}
                 </View>
               </View>
+            </View>
+
+            {/* 隐私政策同意：客户的姓名、手机号、地址属于个人信息，
+                提交前必须明示用途并取得同意。 */}
+            <View className='card'>
+              <ConsentCheckbox
+                checked={policyAgreed}
+                error={policyError}
+                note='你填写的姓名、手机号、小区与详细地址，仅用于向该服务者提交预约并由其上门服务。'
+                onChange={(v) => {
+                  setPolicyAgreed(v)
+                  if (v) setPolicyError('')
+                }}
+              />
             </View>
 
             {!!activeItem?.notes && (

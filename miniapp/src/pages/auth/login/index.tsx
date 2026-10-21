@@ -4,12 +4,16 @@ import Taro from '@tarojs/taro'
 import { loginProvider } from '@/api/auth'
 import { useAuthStore } from '@/store/auth'
 import { toMessage } from '@/hooks/usePageData'
+import ConsentCheckbox from '@/components/ConsentCheckbox'
+import { POLICY_VERSION } from '@/constants/policy'
 
 /** 服务者登录 */
 export default function LoginPage() {
   const signIn = useAuthStore((s) => s.signIn)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [consentAgreed, setConsentAgreed] = useState(false)
+  const [consentError, setConsentError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const onSubmit = async () => {
@@ -18,9 +22,22 @@ export default function LoginPage() {
       Taro.showToast({ title: '请输入手机号和密码', icon: 'none' })
       return
     }
+    // 微信审核要求：收集手机号等个人信息前必须取得明示同意。
+    // 不勾选就不发请求 —— 后端也会拒，但前端拦一层能少一次无谓往返。
+    if (!consentAgreed) {
+      setConsentError('请先阅读并同意《用户服务协议》和《隐私政策》')
+      Taro.showToast({ title: '请先阅读并同意协议与隐私政策', icon: 'none' })
+      return
+    }
+    setConsentError('')
     setSubmitting(true)
     try {
-      const res = await loginProvider({ username: username.trim(), password })
+      const res = await loginProvider({
+        username: username.trim(),
+        password,
+        consentAgreed: true,
+        policyVersion: POLICY_VERSION
+      })
       signIn({
         token: res.token,
         providerId: res.providerId,
@@ -61,6 +78,10 @@ export default function LoginPage() {
             placeholderClass='form-item__placeholder'
             onInput={(e) => setUsername(e.detail.value)}
           />
+          {/* 手机号用途明示告知：审核要求「明确告知收集用户信息的使用目的、方式和用途」 */}
+          <Text className='muted' style={{ display: 'block', marginTop: '8rpx', fontSize: '23rpx' }}>
+            手机号仅用于账号登录与就服务事项与你联系，不作其他用途；登录密码以不可逆方式加密存储。
+          </Text>
         </View>
 
         <View className='form-item'>
@@ -79,14 +100,27 @@ export default function LoginPage() {
           />
         </View>
 
-        <Button
-          className='btn btn--block btn--lg'
-          loading={submitting}
-          disabled={submitting}
-          onClick={onSubmit}
-        >
-          登录
-        </Button>
+        <View style={{ marginTop: '20rpx' }}>
+          <ConsentCheckbox
+            checked={consentAgreed}
+            error={consentError}
+            onChange={(v) => {
+              setConsentAgreed(v)
+              if (v) setConsentError('')
+            }}
+          />
+        </View>
+
+        <View style={{ marginTop: '24rpx' }}>
+          <Button
+            className='btn btn--block btn--lg'
+            loading={submitting}
+            disabled={submitting}
+            onClick={onSubmit}
+          >
+            登录
+          </Button>
+        </View>
       </View>
 
       <View className='auth__footer'>

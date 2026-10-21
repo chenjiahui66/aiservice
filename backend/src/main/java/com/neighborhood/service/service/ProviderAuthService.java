@@ -2,6 +2,7 @@ package com.neighborhood.service.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.neighborhood.service.common.BizException;
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.common.ResultCode;
 import com.neighborhood.service.dto.AuthDto;
 import com.neighborhood.service.dto.ProviderDto;
@@ -43,6 +44,7 @@ public class ProviderAuthService {
     private final ProviderMapper providerMapper;
     private final ServicePageMapper servicePageMapper;
     private final ReferralCodeMapper referralCodeMapper;
+    private final ConsentService consentService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
@@ -53,7 +55,9 @@ public class ProviderAuthService {
     // ------------------------------------------------------------------
 
     @Transactional(rollbackFor = Exception.class)
-    public AuthDto.LoginResponse register(AuthDto.RegisterRequest req) {
+    public AuthDto.LoginResponse register(AuthDto.RegisterRequest req, ConsentContext ctx) {
+        requireConsent(req.getConsentAgreed());
+
         Long exists = userMapper.selectCount(Wrappers.<User>lambdaQuery()
                 .eq(User::getUsername, req.getPhone()));
         if (exists != null && exists > 0) {
@@ -98,6 +102,9 @@ public class ProviderAuthService {
         // 注册即分配推广码，保证「注册后立刻能拿到自己的码」
         seedReferralCode(provider.getId());
 
+        // 合规留证：手机号属于个人信息，注册时已明示并取得同意，这里落一条可核查的记录
+        consentService.recordProviderAgreement(user.getId(), req.getPolicyVersion(), ctx);
+
         log.info("新服务者注册: phone={} providerId={}", maskPhone(req.getPhone()), provider.getId());
 
         AuthDto.LoginResponse resp = new AuthDto.LoginResponse();
@@ -135,7 +142,9 @@ public class ProviderAuthService {
     // 登录
     // ------------------------------------------------------------------
 
-    public AuthDto.LoginResponse login(AuthDto.LoginRequest req) {
+    public AuthDto.LoginResponse login(AuthDto.ProviderLoginRequest req, ConsentContext ctx) {
+        requireConsent(req.getConsentAgreed());
+
         User user = userMapper.selectOne(Wrappers.<User>lambdaQuery()
                 .eq(User::getUsername, req.getUsername())
                 .last("LIMIT 1"));
@@ -163,6 +172,10 @@ public class ProviderAuthService {
         update.setLastLoginAt(LocalDateTime.now());
         userMapper.updateById(update);
 
+        // 合规留证：登录页同样要求明示同意（登录即以手机号识别账号）。
+        // 每次登录记一条，协议更新后可证明用户是就新版同意的。
+        consentService.recordProviderAgreement(user.getId(), req.getPolicyVersion(), ctx);
+
         AuthDto.LoginResponse resp = new AuthDto.LoginResponse();
         resp.setToken(issue(user, provider));
         resp.setProviderId(provider.getId());
@@ -177,6 +190,21 @@ public class ProviderAuthService {
     private String issue(User user, Provider provider) {
         return jwtTokenProvider.generateProviderToken(
                 user.getId(), provider.getId(), user.getUsername(), provider.getRealName());
+    }
+
+    /**
+     * 校验用户是否已明示同意《用户服务协议》和《隐私政策》。
+     *
+     * <p>⚠️ DTO 上的 {@code @AssertTrue} <b>不能</b>单独依赖：JSR-380 规定
+     * {@code @AssertTrue} 对 null 值判定为<b>合法</b>，所以「整个字段不传」
+     * 能绕过注解校验 —— 而「不传」正是恶意客户端的做法。
+     * 这里再显式判一次，null 与 false 一律拒绝。</p>
+     */
+    private void requireConsent(Boolean consentAgreed) {
+        if (!Boolean.TRUE.equals(consentAgreed)) {
+            throw BizException.of(ResultCode.PARAM_ERROR,
+                    "请先阅读并同意《用户服务协议》和《隐私政策》");
+        }
     }
 
     // ------------------------------------------------------------------

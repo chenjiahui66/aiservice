@@ -56,6 +56,10 @@ public final class AdminDto {
          * null = 该服务者还没有主页记录（极少见，等同于未开放）。
          */
         private Boolean pageEnabled;
+        /** 最近一次同意《用户服务协议》《隐私政策》的时间；null = 从未同意过 */
+        private LocalDateTime consentAt;
+        /** 最近一次同意的协议版本号 */
+        private String policyVersion;
         private long orderCount;
         private long customerCount;
         private LocalDateTime createdAt;

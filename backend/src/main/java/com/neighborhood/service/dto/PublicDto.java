@@ -1,5 +1,6 @@
 package com.neighborhood.service.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -94,8 +95,16 @@ public final class PublicDto {
         @Size(max = 200, message = "备注过长")
         private String remark;
 
-        /** 隐私告知确认 */
+        /**
+         * 隐私告知确认：客户的姓名、手机号、地址属于个人信息，
+         * 必须在收集前明示用途并取得同意，服务端强制校验。
+         */
+        @AssertTrue(message = "请先阅读并同意《隐私政策》")
         private Boolean privacyAccepted;
+
+        /** 同意的隐私政策版本号，用于留证追溯 */
+        @Size(max = 16, message = "协议版本号过长")
+        private String policyVersion;
 
         /** 推广渠道标记，由小程序端如实上报 */
         @Size(max = 32)
@@ -149,6 +158,16 @@ public final class PublicDto {
          */
         @Size(max = 64)
         private String referralCode;
+
+        /**
+         * 隐私告知确认：反馈时填写的称呼与电话属于个人信息，需先取得明示同意。
+         */
+        @AssertTrue(message = "请先阅读并同意《隐私政策》")
+        private Boolean privacyAccepted;
+
+        /** 同意的隐私政策版本号，用于留证追溯 */
+        @Size(max = 16, message = "协议版本号过长")
+        private String policyVersion;
     }
 
     @Data

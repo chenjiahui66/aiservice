@@ -19,7 +19,11 @@ export default defineAppConfig({
 
     // 客户扫码路径（公开，无需登录）
     'pages/provider/index',
-    'pages/booking/index'
+    'pages/booking/index',
+
+    // 协议页面（公开，无需登录）—— 微信审核要求可访问的《用户服务协议》《隐私政策》
+    'pages/legal/terms/index',
+    'pages/legal/privacy/index'
   ],
 
   window: {

@@ -165,6 +165,9 @@ public class AdminService {
                 .eq(com.neighborhood.service.entity.Customer::getProviderId, p.getId())));
         User u = userMapper.selectById(p.getUserId());
         vo.setPhone(u == null ? null : u.getPhone());
+        // 协议同意状态：留证要有人能看得到，否则出了争议只能去翻库
+        vo.setConsentAt(u == null ? null : u.getConsentAt());
+        vo.setPolicyVersion(u == null ? null : u.getPolicyVersion());
         var ref = referralCodeService.findByProviderId(p.getId());
         vo.setReferralCode(ref == null ? null : ref.getReferralCode());
         vo.setCreatedAt(p.getCreatedAt());

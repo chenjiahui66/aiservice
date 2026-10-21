@@ -198,6 +198,27 @@ fi
 # ---------------------------------------------------------------------
 info "启动服务"
 
+# 先把 MySQL 单独拉起来：迁移必须在库可连之后才能执行
+docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d mysql
+info "等待 MySQL 就绪"
+for i in $(seq 1 60); do
+  status=$(docker inspect -f '{{.State.Health.Status}}' nb-mysql 2>/dev/null || echo "")
+  if [ "$status" = "healthy" ]; then
+    break
+  fi
+  sleep 2
+done
+if [ "$(docker inspect -f '{{.State.Health.Status}}' nb-mysql 2>/dev/null || echo '')" != "healthy" ]; then
+  fail "MySQL 未在预期时间内就绪，请检查 docker logs nb-mysql"
+fi
+
+# 数据库迁移：schema.sql 只在首次初始化时跑，已部署的环境新增表/列必须靠这一步，
+# 否则新功能上线即报表不存在
+if [ -f "$ROOT/deploy/migrate.sh" ]; then
+  info "执行数据库迁移"
+  bash "$ROOT/deploy/migrate.sh" || fail "数据库迁移失败，请检查 deploy/migrations/ 下的脚本"
+fi
+
 # ⚠️ --build 只做「组装镜像」，Dockerfile.prebuilt 里没有编译阶段，不会跑 Maven。
 docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d --build
 ok "容器已启动"

@@ -40,6 +40,10 @@ export interface FeedbackRequest {
   customerPhone?: string
   /** 客户扫码入口进入时携带，用于反查服务者 */
   referralCode?: string
+  /** 是否已阅读并同意《隐私政策》（后端强制校验） */
+  privacyAccepted: boolean
+  /** 同意的隐私政策版本号，用于后端留证 */
+  policyVersion: string
 }
 
 export interface FeedbackResult {
@@ -104,11 +108,22 @@ export interface RegisterRequest {
   password: string
   realName: string
   serviceArea: string
+  /**
+   * 是否已阅读并同意《用户服务协议》和《隐私政策》。
+   * 后端强制校验：false / 不传都会被拒。
+   */
+  consentAgreed: boolean
+  /** 同意的协议版本号，用于后端留证 */
+  policyVersion: string
 }
 
 export interface LoginRequest {
   username: string
   password: string
+  /** 是否已阅读并同意《用户服务协议》和《隐私政策》 */
+  consentAgreed: boolean
+  /** 同意的协议版本号，用于后端留证 */
+  policyVersion: string
 }
 
 // ---------------------------------------------------------------- 公开（客户扫码）
@@ -158,6 +173,8 @@ export interface BookingRequest {
   serviceDesc?: string
   remark?: string
   privacyAccepted: boolean
+  /** 同意的隐私政策版本号，用于后端留证 */
+  policyVersion: string
   channel: string
 }
 

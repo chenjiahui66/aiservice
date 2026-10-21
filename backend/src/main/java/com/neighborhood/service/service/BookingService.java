@@ -3,6 +3,7 @@ package com.neighborhood.service.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.neighborhood.service.common.BizException;
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.common.ResultCode;
 import com.neighborhood.service.dto.PublicDto;
 import com.neighborhood.service.entity.Customer;
@@ -55,9 +56,16 @@ public class BookingService {
     private final CustomerMapper customerMapper;
     private final OrderMapper orderMapper;
     private final OrderLogMapper orderLogMapper;
+    private final ConsentService consentService;
 
     @Transactional(rollbackFor = Exception.class)
-    public PublicDto.BookingResultVO createBooking(PublicDto.BookingRequest request) {
+    public PublicDto.BookingResultVO createBooking(PublicDto.BookingRequest request, ConsentContext ctx) {
+        // ⚠️ @AssertTrue 对 null 判定为合法（见 JSR-380），
+        // 「字段整个不传」能绕过注解，所以这里显式再判一次。
+        if (!Boolean.TRUE.equals(request.getPrivacyAccepted())) {
+            throw BizException.of(ResultCode.PARAM_ERROR, "请先阅读并同意《隐私政策》");
+        }
+
         // 1) 推广码：格式 / 存在 / 启用
         ReferralCode code = referralCodeService.requireActiveByCode(request.getReferralCode());
 
@@ -105,6 +113,9 @@ public class BookingService {
 
         // 9) 推广码真实预约量
         referralCodeService.markBooking(code.getId());
+
+        // 10) 合规留证：客户的姓名/手机号/地址属于个人信息，同意记录要能追溯到这笔订单
+        consentService.recordCustomerPrivacy(order.getOrderNo(), request.getPolicyVersion(), ctx);
 
         log.info("创建订单 {} 归属服务者 {}（推广码 {}）", order.getOrderNo(), provider.getId(), code.getReferralCode());
 

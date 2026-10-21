@@ -134,6 +134,7 @@ onMounted(load)
         <p class="page__desc">
           停用会同步禁用其登录账号并立即失效推广码，客户无法再访问主页与下单；操作原因会写入审核备注与操作日志。
           「服务主页」列控制的是客户扫码能不能看到内容：正常由服务者自己在小程序里开关，这里是管理员的兜底入口。
+          「协议同意」记录服务者最近一次同意《用户服务协议》《隐私政策》的时间，用于合规核查。
         </p>
       </div>
     </div>
@@ -201,6 +202,14 @@ onMounted(load)
                   {{ row.pageEnabled ? '关闭' : '开启' }}
                 </el-button>
               </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="协议同意" width="120">
+            <template #default="{ row }: { row: ProviderListVO }">
+              <span v-if="row.consentAt" class="mono">
+                {{ (row.consentAt || '').replace('T', ' ').slice(0, 16) }}
+              </span>
+              <el-tag v-else size="small" type="danger">未同意</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="推广码" min-width="150">

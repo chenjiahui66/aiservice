@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `phone`         VARCHAR(20)  NULL     COMMENT '手机号',
   `status`        TINYINT      NOT NULL DEFAULT 1 COMMENT '账号状态 1正常 2禁用',
   `last_login_at` DATETIME     NULL     COMMENT '最后登录时间',
+  `consent_at`    DATETIME     NULL     COMMENT '最近一次同意《用户服务协议》《隐私政策》的时间',
+  `policy_version` VARCHAR(16) NULL     COMMENT '最近一次同意的协议版本号，如 v1.0',
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted`       TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0正常 1删除',
@@ -308,6 +310,35 @@ CREATE TABLE IF NOT EXISTS `system_settings` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_settings_key` (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统基础设置';
+
+-- ---------------------------------------------------------------------
+-- 13. user_consents —— 用户协议 / 隐私政策同意记录（合规留证）
+--
+-- 为什么必须有这张表：微信小程序审核要求「收集手机号等个人信息前必须明示告知
+-- 并取得用户授权同意」。光有小程序上的勾选框不算数 —— 出了争议要能证明
+-- 「谁、何时、在哪、以哪个版本同意了哪份文件」。本表就是这份证据链。
+--
+-- 每次同意动作留一条，不做覆盖：协议更新后可以证明用户是就新版重新同意的。
+-- 匿名客户（扫码下单）没有账号，user_id 为 NULL，用 subject_id 关联订单号。
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `user_consents` (
+  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`        BIGINT UNSIGNED NULL     COMMENT '服务者ID；匿名客户下单时为NULL',
+  `user_type`      VARCHAR(16)  NOT NULL    COMMENT '主体类型 PROVIDER=服务者 CUSTOMER=客户',
+  `subject_type`   VARCHAR(16)  NOT NULL    COMMENT '同意对象 AGREEMENT=服务协议 PRIVACY=隐私政策',
+  `subject_id`     VARCHAR(64)  NULL     COMMENT '关联业务ID（如订单号），可为空',
+  `policy_version` VARCHAR(16)  NOT NULL    COMMENT '协议版本号，如 v1.0',
+  `agreed`         TINYINT       NOT NULL    COMMENT '1=同意 0=拒绝',
+  `client_ip`      VARCHAR(45)  NULL     COMMENT '同意时的客户端IP',
+  `user_agent`     VARCHAR(500) NULL     COMMENT '同意时的客户端标识',
+  `agreed_at`      DATETIME      NOT NULL    COMMENT '同意时间',
+  `created_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `deleted`        TINYINT       NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_consents_user` (`user_id`, `subject_type`),
+  KEY `idx_consents_agreed_at` (`agreed_at`),
+  KEY `idx_consents_subject` (`subject_type`, `subject_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户协议与隐私政策同意记录';
 
 -- =====================================================================
 -- 索引与约束补充说明

@@ -53,6 +53,14 @@ public class User {
     /** 最后登录时间 */
     private LocalDateTime lastLoginAt;
 
+    @TableField("consent_at")
+    /** 最近一次同意《用户服务协议》《隐私政策》的时间 */
+    private LocalDateTime consentAt;
+
+    @TableField("policy_version")
+    /** 最近一次同意的协议版本号，如 v1.0 */
+    private String policyVersion;
+
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     /** 创建时间（自动填充） */
     private LocalDateTime createdAt;

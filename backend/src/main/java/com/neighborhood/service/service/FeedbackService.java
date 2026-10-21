@@ -1,6 +1,7 @@
 package com.neighborhood.service.service;
 
 import com.neighborhood.service.common.BizException;
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.common.ResultCode;
 import com.neighborhood.service.dto.PublicDto;
 import com.neighborhood.service.entity.Complaint;
@@ -42,9 +43,16 @@ public class FeedbackService {
 
     private final ComplaintMapper complaintMapper;
     private final ReferralCodeService referralCodeService;
+    private final ConsentService consentService;
 
     @Transactional(rollbackFor = Exception.class)
-    public PublicDto.FeedbackResultVO submit(PublicDto.FeedbackRequest request) {
+    public PublicDto.FeedbackResultVO submit(PublicDto.FeedbackRequest request, ConsentContext ctx) {
+        // ⚠️ @AssertTrue 对 null 判定为合法（见 JSR-380），
+        // 「字段整个不传」能绕过注解，所以这里显式再判一次。
+        if (!Boolean.TRUE.equals(request.getPrivacyAccepted())) {
+            throw BizException.of(ResultCode.PARAM_ERROR, "请先阅读并同意《隐私政策》");
+        }
+
         ComplaintType type = parseType(request.getType());
         Long providerId = resolveProviderId(request.getReferralCode());
 
@@ -57,6 +65,10 @@ public class FeedbackService {
         // 新提交一律进入待处理；处理结果只能由管理员通过 handle 接口写入
         complaint.setStatus(ComplaintStatus.PENDING);
         complaintMapper.insert(complaint);
+
+        // 合规留证：反馈里可能带称呼与电话，属于个人信息，同意记录要能追溯到这条反馈
+        consentService.recordCustomerPrivacy("COMPLAINT-" + complaint.getId(),
+                request.getPolicyVersion(), ctx);
 
         log.info("收到意见反馈 id={} type={} providerId={}", complaint.getId(), type.getCode(), providerId);
 

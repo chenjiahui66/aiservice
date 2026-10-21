@@ -136,6 +136,13 @@ onMounted(load)
               <el-tag v-if="detail.pageEnabled" size="small" type="success">开放中</el-tag>
               <el-tag v-else size="small" type="info">已关闭</el-tag>
             </el-descriptions-item>
+            <el-descriptions-item label="协议同意">
+              <span v-if="detail.consentAt" class="mono">
+                {{ (detail.consentAt || '').replace('T', ' ').slice(0, 19) }}
+                （{{ detail.policyVersion || '-' }}）
+              </span>
+              <el-tag v-else size="small" type="danger">未同意</el-tag>
+            </el-descriptions-item>
           </el-descriptions>
         </section>
 

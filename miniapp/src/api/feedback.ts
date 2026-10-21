@@ -11,8 +11,11 @@ import type { FeedbackRequest, FeedbackResult } from '@/types/domain'
  *
  *   POST /api/public/feedback
  *   权限：匿名（若请求头带有效 provider token，后端可据此填 provider_id）
- *   请求：{ type: 'FEEDBACK'|'COMPLAINT'|'VIOLATION', content, customerName?, customerPhone?, referralCode? }
+ *   请求：{ type, content, customerName?, customerPhone?, referralCode?, privacyAccepted, policyVersion }
  *   响应：{ id, status: 'PENDING', statusLabel: '待处理', createdAt }
+ *
+ * ⚠️ privacyAccepted / policyVersion 是合规留证字段：反馈里可能带称呼与电话，
+ *   属于个人信息，服务端强制要求明示同意后才受理。
  *
  * 字段与 complaints 表列一一对应，后端实现就是一次 insert。
  * 若最终路径或字段名不同，只需改本文件，页面无需改动。

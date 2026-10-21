@@ -1,5 +1,6 @@
 package com.neighborhood.service.controller;
 
+import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.common.Result;
 import com.neighborhood.service.dto.PublicDto;
 import com.neighborhood.service.service.BookingService;
@@ -7,6 +8,7 @@ import com.neighborhood.service.service.FeedbackService;
 import com.neighborhood.service.service.PublicHomeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -44,17 +46,20 @@ public class PublicController {
     }
 
     @Operation(summary = "客户提交预约",
-            description = "订单归属完全由服务端依据 referralCode 反查得出，请求体中不存在 providerId 字段。")
+            description = "订单归属完全由服务端依据 referralCode 反查得出，请求体中不存在 providerId 字段。"
+                    + "客户的姓名、手机号、地址属于个人信息，必须先明示同意《隐私政策》。")
     @PostMapping("/bookings")
-    public Result<PublicDto.BookingResultVO> book(@Valid @RequestBody PublicDto.BookingRequest request) {
-        return Result.ok(bookingService.createBooking(request));
+    public Result<PublicDto.BookingResultVO> book(@Valid @RequestBody PublicDto.BookingRequest request,
+                                                  HttpServletRequest servletRequest) {
+        return Result.ok(bookingService.createBooking(request, ConsentContext.from(servletRequest)));
     }
 
     @Operation(summary = "提交意见反馈（功能建议 / 投诉 / 违规举报）",
             description = "匿名可提交。服务者身份只来自登录 token，客户身份只来自 referralCode 反查，"
                     + "请求体中不存在 providerId。写入 complaints 表，管理后台可直接查看与处理。")
     @PostMapping("/feedback")
-    public Result<PublicDto.FeedbackResultVO> feedback(@Valid @RequestBody PublicDto.FeedbackRequest request) {
-        return Result.ok(feedbackService.submit(request));
+    public Result<PublicDto.FeedbackResultVO> feedback(@Valid @RequestBody PublicDto.FeedbackRequest request,
+                                                        HttpServletRequest servletRequest) {
+        return Result.ok(feedbackService.submit(request, ConsentContext.from(servletRequest)));
     }
 }

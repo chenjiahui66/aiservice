@@ -88,6 +88,20 @@ export default function SettingsPage() {
           <Text>意见反馈</Text>
           <Text className='setting-item__value'>功能建议与问题反馈 ›</Text>
         </View>
+        <View
+          className='setting-item'
+          onClick={() => Taro.navigateTo({ url: '/pages/legal/terms/index' })}
+        >
+          <Text>用户服务协议</Text>
+          <Text className='setting-item__value'>查看 ›</Text>
+        </View>
+        <View
+          className='setting-item'
+          onClick={() => Taro.navigateTo({ url: '/pages/legal/privacy/index' })}
+        >
+          <Text>隐私政策</Text>
+          <Text className='setting-item__value'>查看 ›</Text>
+        </View>
       </View>
 
       <View className='setting-group'>

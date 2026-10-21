@@ -5,6 +5,8 @@ import { submitFeedback } from '@/api/feedback'
 import { useAuthStore } from '@/store/auth'
 import { getQueryParam } from '@/platform'
 import { toMessage } from '@/hooks/usePageData'
+import ConsentCheckbox from '@/components/ConsentCheckbox'
+import { POLICY_VERSION } from '@/constants/policy'
 import type { ComplaintType, FeedbackResult } from '@/types/domain'
 
 /** 反馈类型，取值与后端 ComplaintType 枚举严格一致 */
@@ -32,6 +34,8 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<FeedbackResult | null>(null)
   const [error, setError] = useState('')
+  const [policyAgreed, setPolicyAgreed] = useState(false)
+  const [policyError, setPolicyError] = useState('')
 
   const activeHint = TYPES.find((t) => t.value === type)?.hint || ''
 
@@ -51,6 +55,13 @@ export default function FeedbackPage() {
       setError('请输入正确的手机号，便于我们回访')
       return
     }
+    // 反馈里可能填写称呼与电话，属于个人信息，提交前必须取得明示同意
+    if (!policyAgreed) {
+      setPolicyError('请先阅读并同意《隐私政策》')
+      Taro.showToast({ title: '请先同意隐私政策', icon: 'none' })
+      return
+    }
+    setPolicyError('')
 
     setError('')
     setSubmitting(true)
@@ -60,7 +71,9 @@ export default function FeedbackPage() {
         content: text,
         customerName: name.trim() || undefined,
         customerPhone: phone.trim() || undefined,
-        referralCode
+        referralCode,
+        privacyAccepted: true,
+        policyVersion: POLICY_VERSION
       })
       setResult(res)
     } catch (e) {
@@ -194,6 +207,18 @@ export default function FeedbackPage() {
           <Text>{error}</Text>
         </View>
       )}
+
+      <View style={{ marginBottom: '20rpx' }}>
+        <ConsentCheckbox
+          checked={policyAgreed}
+          error={policyError}
+          note='你填写的称呼与手机号仅用于处理本条反馈时与你联系，不会用于其他用途。'
+          onChange={(v) => {
+            setPolicyAgreed(v)
+            if (v) setPolicyError('')
+          }}
+        />
+      </View>
 
       <Button
         className='btn btn--block btn--lg'

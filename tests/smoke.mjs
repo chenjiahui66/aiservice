@@ -75,14 +75,17 @@ const today = nextBookableDate();
   if (!adminToken) { console.log('管理员登录失败，终止'); process.exit(1); }
 
   section('2. 两个服务者注册');
+  // ⚠️ 注册必须带协议同意：手机号属于个人信息，服务端强制要求明示同意
+  //    （见 backend AuthDto.RegisterRequest#consentAgreed）
+  const consent = { consentAgreed: true, policyVersion: 'v1.0' };
   const regA = await api('POST', '/api/auth/provider/register',
-    { body: { phone: phoneA, password: 'test123456', realName: '张师傅', serviceArea: '阳光小区' } });
+    { body: { phone: phoneA, password: 'test123456', realName: '张师傅', serviceArea: '阳光小区', ...consent } });
   ok('服务者 A 注册成功', regA.json?.code === 0, JSON.stringify(regA.json));
   const providerA = regA.json?.data;
   ok('新注册默认「待审核」', providerA?.auditStatus === 'PENDING', `实际=${providerA?.auditStatus}`);
 
   const regB = await api('POST', '/api/auth/provider/register',
-    { body: { phone: phoneB, password: 'test123456', realName: '李阿姨', serviceArea: '幸福家园' } });
+    { body: { phone: phoneB, password: 'test123456', realName: '李阿姨', serviceArea: '幸福家园', ...consent } });
   ok('服务者 B 注册成功', regB.json?.code === 0);
   const providerB = regB.json?.data;
 

@@ -276,6 +276,39 @@
   color: var(--text-inverse);
 }
 
+/* ---------------- 协议正文 ---------------- */
+.policy-links {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-bottom: 12rpx;
+  font-size: 25rpx;
+}
+
+.policy__p {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  line-height: 1.75;
+  color: var(--text-2);
+}
+
+.policy__li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.75;
+  color: var(--text-2);
+}
+
+.policy__bullet {
+  flex-shrink: 0;
+  color: var(--brand);
+  font-weight: 700;
+}
+
 /* ---------------- 订单卡片 ---------------- */
 .order-card__head {
   display: flex;

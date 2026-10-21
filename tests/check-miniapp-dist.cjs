@@ -171,6 +171,68 @@ if (fs.existsSync(providerJs)) {
   ok(false, '找不到客户主页产物 pages/provider/index.js');
 }
 
+// 10. 🔴 协议页面必须存在且有实质内容
+//
+//     微信审核要求补充《用户服务协议》《隐私政策》并可访问。
+//     页面缺失或只有壳，审核员点开看到空白 = 直接驳回。
+const appJson = JSON.parse(fs.readFileSync(path.join(DIST, 'app.json'), 'utf8'));
+for (const [route, kw] of [
+  ['pages/legal/terms/index', '用户服务协议'],
+  ['pages/legal/privacy/index', '隐私政策']
+]) {
+  ok((appJson.pages || []).includes(route), `app.json 声明了 ${route}`);
+  const p = path.join(DIST, route + '.js');
+  if (fs.existsSync(p)) {
+    const t = fs.readFileSync(p, 'utf8');
+    ok(hasText(t, kw), `${route} 含「${kw}」正文`);
+    // 隐私政策必须写清楚「收集什么 / 用来干什么 / 怎么存」这三件事
+    if (route.includes('privacy')) {
+      ok(hasText(t, '我们收集的信息'), '隐私政策写明了收集的信息范围');
+      ok(hasText(t, '使用目的'), '隐私政策写明了使用目的');
+      ok(hasText(t, '存储'), '隐私政策写明了存储方式');
+    }
+  } else {
+    ok(false, `缺少 ${route} 的产物`);
+  }
+}
+
+// 11. 🔴 登录 / 注册页必须强制勾选同意
+//
+//     审核要求「取得用户授权同意后，才能获取用户信息」，
+//     勾选框 + 未勾选拦截是这条要求的唯一落点。
+for (const [route, label] of [
+  ['pages/auth/login/index', '登录页'],
+  ['pages/auth/register/index', '注册页']
+]) {
+  const p = path.join(DIST, route + '.js');
+  if (!fs.existsSync(p)) {
+    ok(false, `缺少 ${route} 的产物`);
+    continue;
+  }
+  const t = fs.readFileSync(p, 'utf8');
+  ok(hasText(t, '我已阅读并同意'), `${label}含「我已阅读并同意」勾选文案`);
+  ok(hasText(t, '请先阅读并同意'), `${label}未勾选时有拦截提示`);
+}
+
+// 12. 🔴 前后端协议版本必须一致
+//
+//     前端把读到的版本号随注册/登录提交，后端据此留证。
+//     两边一旦漂移，留证指向的就是用户根本没看过的版本 —— 等于没留证。
+const POLICY_SRC = path.resolve(__dirname, '..', 'miniapp', 'src', 'constants', 'policy.ts');
+const CONSENT_SRC = path.resolve(
+  __dirname, '..', 'backend', 'src', 'main', 'java', 'com', 'neighborhood', 'service', 'service', 'ConsentService.java'
+);
+if (fs.existsSync(POLICY_SRC) && fs.existsSync(CONSENT_SRC)) {
+  const front = fs.readFileSync(POLICY_SRC, 'utf8');
+  const back = fs.readFileSync(CONSENT_SRC, 'utf8');
+  const fv = (front.match(/POLICY_VERSION\s*=\s*'([^']+)'/) || [])[1];
+  const bv = (back.match(/CURRENT_POLICY_VERSION\s*=\s*"([^"]+)"/) || [])[1];
+  ok(!!fv && !!bv && fv === bv,
+    `前后端协议版本一致（前端 ${fv} / 后端 ${bv}）`);
+} else {
+  ok(false, '找不到 policy.ts 或 ConsentService.java，无法校验协议版本');
+}
+
 /**
  * 产物里的中文会被转义成 \uXXXX，检查时要两种写法都认。
  *
