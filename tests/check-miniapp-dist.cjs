@@ -25,19 +25,32 @@ const files = [];
 console.log('=== 产物检查 ===');
 console.log(`  js 文件: ${files.length} 个\n`);
 
-// 0. 🔴 配置层护栏：dev 与 prod 两份配置都必须关掉 splitChunks / runtimeChunk
+// 0. 🔴 配置层护栏：dev 与 prod 两份配置都必须**保持 Taro 默认的 optimization**
 //
-//    `taro build --type weapp`        → NODE_ENV=production → 走 config/prod.ts
-//    `taro build --type weapp --watch` → NODE_ENV=development → 走 config/dev.ts
-//    （即 npm run dev:weapp）
+//    曾经这里断言的是「两份配置都要关掉 splitChunks / runtimeChunk」——
+//    那条断言本身是错的，它把一个更大的 bug 固化了下来。
 //
-//    Taro 的默认优化会开 splitChunks + runtimeChunk，把代码拆成
-//    runtime / common / vendors / taro 四个 js，彼此用 CommonJS require() 互连。
-//    微信小程序运行时**没有 require 这个全局对象**，第一行就抛
-//    `require is not defined` → 纯白屏，且没有任何业务报错。
+//    真相：Taro 4 的小程序产物里，app / comp / 每个页面都是**独立的 webpack 入口**。
+//    关掉 splitChunks → webpack 把 @tarojs/runtime **物理复制**进每一个入口文件。
+//    实测过：19 个 js 文件里各有一份自己的 `Current = { app: null }`。
+//    而 Current 是 @tarojs/runtime 的**单例**：
+//      - Current.app 由 createReactApp() 赋值（只在 app.js 那一份里执行）
+//      - 页面 onLoad 时用 Current.app.mount(...) 挂载 React 树
+//    页面那份副本没人赋值 → 恒为 null →
+//        TypeError: Cannot read property 'mount' of null
+//            at mount  (@tarojs/runtime/dist/dsl/common.ts)
+//            at onLoad (@tarojs/runtime/dist/dsl/common.ts)
+//    → 打开任何页面都白屏。
 //
-//    只在 prod.ts 里关过一次，结果就是「dev 好好的，一 build 上传就白屏」。
-//    现在两份配置都关，并且在这里断言 —— 以后再改漏一边会直接挂。
+//    正确形态：保持 Taro 默认的 splitChunks —— @tarojs/runtime 被抽成公共 chunk
+//    （taro.js），配合 webpack 的 wx.webpackJsonp 全局注册表，
+//    所有入口共用同一份模块实例，Current 才是唯一的。
+//    公共 chunk 之间用 require("./taro.js") 串联 —— 微信小程序 JS 支持 require
+//    其它 JS 文件，这是 Taro 官方产物形态，不是问题。
+//
+//    另外 dev / prod **两边**都必须关掉 prebundle（module federation）：
+//    开启时页面 chunk 只 push 到 wx.webpackJsonp，依赖 remoteEntry 注册远程容器，
+//    时序对不上页面模块就永远不执行 → 白屏 + 只有 tabbar。
 const CONFIG_DIR = path.resolve(__dirname, '..', 'miniapp', 'config');
 for (const name of ['dev.ts', 'prod.ts']) {
   const p = path.join(CONFIG_DIR, name);
@@ -46,8 +59,11 @@ for (const name of ['dev.ts', 'prod.ts']) {
     continue;
   }
   const t = fs.readFileSync(p, 'utf8');
-  ok(/splitChunks:\s*false/.test(t), `${name} 关掉了 splitChunks`);
-  ok(/runtimeChunk:\s*false/.test(t), `${name} 关掉了 runtimeChunk`);
+  ok(!/splitChunks:\s*false/.test(t),
+    `${name} 没有关掉 splitChunks（关掉会让 runtime 被复制成 N 份 → 页面全白屏）`);
+  ok(!/runtimeChunk:\s*false/.test(t), `${name} 没有关掉 runtimeChunk`);
+  ok(/prebundle[\s\S]{0,120}enable:\s*false/.test(t),
+    `${name} 关掉了 prebundle（module federation 会让页面 chunk 永不执行）`);
 }
 
 // 1. 不能有未内联的 process.env.TARO_APP_* 残留
@@ -98,25 +114,52 @@ ok(local.length === 0, `无 localhost 残留${local.length ? '：' + local.map(x
 const old = hitFiles.filter(([, u]) => /localhost|127\.0\.0\.1|aindgc\.com/.test(u) && u !== EXPECT);
 ok(old.length === 0, `无其它域名残留${old.length ? '：' + old.map(x => x[1]).join(', ') : ''}`);
 
-// 5. 🔴 产物里不能有 CommonJS require()
+// 5. 🔴 @tarojs/runtime 必须只有**一份物理副本**
 //
-//    微信小程序运行时**没有 require 这个全局对象**。只要产物里出现顶层
-//    `require("./xxx")`，小程序启动第一行就抛 `require is not defined`，
-//    表现为纯白屏，且 Console 里没有任何业务报错 —— 最难定位的一类故障。
+//    Current 是 @tarojs/runtime 的单例：Current.app 由 createReactApp() 赋值，
+//    页面 onLoad 时用 Current.app.mount(...) 挂载 React 树。
+//    一旦 runtime 被复制成 N 份（N = 入口数），页面那份的 Current.app 恒为 null，
+//    打开任何页面都抛 `Cannot read property 'mount' of null` → 纯白屏。
 //
-//    来源：Taro 默认的 optimization.splitChunks + runtimeChunk 会把代码拆成
-//    runtime / common / vendors / taro 四个 chunk，它们之间用 CommonJS 互连。
-//    dev 模式不拆，所以只有 build:weapp 会中招。
-const requireHits = [];
-for (const f of files) {
-  const t = fs.readFileSync(f, 'utf8');
-  const m = t.match(/\brequire\s*\(\s*["']/g);
-  if (m) requireHits.push(`${path.relative(DIST, f)} (${m.length} 处)`);
-}
-ok(requireHits.length === 0,
-   `无 CommonJS require()（微信运行时不支持）${requireHits.length ? '：' + requireHits.join(', ') : ''}`);
+//    判据：Current 的字面量定义 `app:null,router:null,page:null`
+//    （terser 不会改属性名，压缩前后都能匹配；比较前先去掉所有空白）。
+const CURRENT_PAT = 'app:null,router:null,page:null';
+const currentFiles = files.filter(f =>
+  fs.readFileSync(f, 'utf8').replace(/\s+/g, '').includes(CURRENT_PAT));
+ok(currentFiles.length === 1,
+  `Taro runtime 只有一份副本（应为 1，实际 ${currentFiles.length}）` +
+  (currentFiles.length !== 1
+    ? '：' + currentFiles.map(f => path.relative(DIST, f)).slice(0, 3).join(', ')
+    : ''));
 
-// 6. app.json / project.config.json 不能有 BOM
+// 6. 公共 chunk 必须存在，且入口文件用 require 把它串起来
+//    （微信小程序 JS 支持 require 其它 JS 文件，这是 Taro 官方产物形态）
+const sharedChunks = files
+  .map(f => path.basename(f))
+  .filter(n => ['taro.js', 'common.js', 'vendors.js'].includes(n));
+ok(sharedChunks.length > 0, `存在公共 chunk：${sharedChunks.join(', ') || '无'}`);
+const appJsPath = path.join(DIST, 'app.js');
+if (fs.existsSync(appJsPath)) {
+  const appJs = fs.readFileSync(appJsPath, 'utf8');
+  ok(/require\("\.\/taro"\)/.test(appJs), 'app.js 用 require 引入公共 chunk taro.js');
+}
+
+/**
+ * 取「某页面可见的全部文案」。
+ *
+ * 开启 splitChunks 后，页面自己的 chunk 只剩页面专属代码；
+ * 共用组件（ConsentCheckbox）、共用常量（constants/policy.ts）会被
+ * webpack 抽进公共 chunk（common.js）。只查页面 chunk 会误报「文案缺失」。
+ * 所以这里把页面 chunk + 全部公共 chunk 拼起来一起找。
+ */
+const sharedChunkFiles = files.filter(f => sharedChunks.includes(path.basename(f)));
+function pageText (route) {
+  const p = path.join(DIST, route + '.js');
+  if (!fs.existsSync(p)) return null;
+  return [fs.readFileSync(p, 'utf8'), ...sharedChunkFiles.map(f => fs.readFileSync(f, 'utf8'))].join('\n');
+}
+
+// 7. app.json / project.config.json 不能有 BOM
 let bomHits = [];
 (function walkAll(d) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -130,7 +173,7 @@ let bomHits = [];
 })(DIST);
 ok(bomHits.length === 0, `无 BOM 文件${bomHits.length ? '：' + bomHits.join(', ') : ''}`);
 
-// 7. app.json 里声明的每个页面，三件套产物都得存在
+// 8. app.json 里声明的每个页面，三件套产物都得存在
 let missingPages = [];
 const appJsonPath = path.join(DIST, 'app.json');
 if (fs.existsSync(appJsonPath)) {
@@ -145,33 +188,33 @@ if (fs.existsSync(appJsonPath)) {
 ok(missingPages.length === 0,
    `app.json 声明的页面产物齐全${missingPages.length ? '，缺失：' + missingPages.slice(0, 5).join(', ') : ''}`);
 
-// 8. 🔴 推广页必须在主页关闭时给出醒目提示 + 去开启的入口
+// 9. 🔴 推广页必须在主页关闭时给出醒目提示 + 去开启的入口
 //
 //    背景：推广码在服务者**注册时**就发下去了，主页一旦是关的，
 //    客户扫码只会拿到 41008「该服务主页已关闭」。而「开启主页」开关
 //    藏在「编辑主页」里，服务者最容易忽略 —— 所以推广页必须显式警告。
-const referralJs = path.join(DIST, 'pages', 'referral', 'index.js');
-if (fs.existsSync(referralJs)) {
-  const t = fs.readFileSync(referralJs, 'utf8');
+const referralText = pageText('pages/referral/index');
+if (referralText !== null) {
+  const t = referralText;
   ok(t.includes('notice--danger'), '推广页含「主页未开启」的醒目告警样式');
   ok(hasText(t, '去开启服务主页'), '推广页含「去开启服务主页」入口');
 } else {
   ok(false, '找不到推广页产物 pages/referral/index.js');
 }
 
-// 9. 🔴 客户主页必须对 41008 单独处理，不能只甩一句「重新加载」
+// 10. 🔴 客户主页必须对 41008 单独处理，不能只甩一句「重新加载」
 //
 //    主页关闭是客户自己解决不了的状态，让他反复点重试只会以为是自己手机的问题。
-const providerJs = path.join(DIST, 'pages', 'provider', 'index.js');
-if (fs.existsSync(providerJs)) {
-  const t = fs.readFileSync(providerJs, 'utf8');
+const providerText = pageText('pages/provider/index');
+if (providerText !== null) {
+  const t = providerText;
   ok(t.includes('41008'), '客户主页含 41008 业务码的专门处理');
   ok(hasText(t, '暂未开放服务主页'), '客户主页含可读文案，而不是让客户干点重试');
 } else {
   ok(false, '找不到客户主页产物 pages/provider/index.js');
 }
 
-// 10. 🔴 协议页面必须存在且有实质内容
+// 11. 🔴 协议页面必须存在且有实质内容
 //
 //     微信审核要求补充《用户服务协议》《隐私政策》并可访问。
 //     页面缺失或只有壳，审核员点开看到空白 = 直接驳回。
@@ -181,9 +224,8 @@ for (const [route, kw] of [
   ['pages/legal/privacy/index', '隐私政策']
 ]) {
   ok((appJson.pages || []).includes(route), `app.json 声明了 ${route}`);
-  const p = path.join(DIST, route + '.js');
-  if (fs.existsSync(p)) {
-    const t = fs.readFileSync(p, 'utf8');
+  const t = pageText(route);
+  if (t !== null) {
     ok(hasText(t, kw), `${route} 含「${kw}」正文`);
     // 隐私政策必须写清楚「收集什么 / 用来干什么 / 怎么存」这三件事
     if (route.includes('privacy')) {
@@ -196,7 +238,7 @@ for (const [route, kw] of [
   }
 }
 
-// 11. 🔴 登录 / 注册页必须强制勾选同意
+// 12. 🔴 登录 / 注册页必须强制勾选同意
 //
 //     审核要求「取得用户授权同意后，才能获取用户信息」，
 //     勾选框 + 未勾选拦截是这条要求的唯一落点。
@@ -204,17 +246,16 @@ for (const [route, label] of [
   ['pages/auth/login/index', '登录页'],
   ['pages/auth/register/index', '注册页']
 ]) {
-  const p = path.join(DIST, route + '.js');
-  if (!fs.existsSync(p)) {
+  const t = pageText(route);
+  if (t === null) {
     ok(false, `缺少 ${route} 的产物`);
     continue;
   }
-  const t = fs.readFileSync(p, 'utf8');
   ok(hasText(t, '我已阅读并同意'), `${label}含「我已阅读并同意」勾选文案`);
   ok(hasText(t, '请先阅读并同意'), `${label}未勾选时有拦截提示`);
 }
 
-// 12. 🔴 前后端协议版本必须一致
+// 13. 🔴 前后端协议版本必须一致
 //
 //     前端把读到的版本号随注册/登录提交，后端据此留证。
 //     两边一旦漂移，留证指向的就是用户根本没看过的版本 —— 等于没留证。

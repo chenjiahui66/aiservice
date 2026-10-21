@@ -40,7 +40,8 @@ export interface PolicyDoc {
  *    个人信息处理者明示身份。留空会被判为「隐私政策不完整」。
  */
 export const OPERATOR_NOTICE =
-  '运营主体：待核实（上线前须填写完整的企业 / 个体工商户名称、统一社会信用代码、注册地址与联系方式）'
+  ''
+  //'运营主体：待核实（上线前须填写完整的企业 / 个体工商户名称、统一社会信用代码、注册地址与联系方式）'
 
 export const USER_AGREEMENT: PolicyDoc = {
   title: '用户服务协议',

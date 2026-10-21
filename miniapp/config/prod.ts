@@ -42,6 +42,22 @@ const config: UserConfigExport<'webpack5'> = {
   env: {
     NODE_ENV: '"production"'
   },
+  /**
+   * ⚠️ 关闭「依赖预编译」（prebundle / module federation）。
+   *
+   * 开启时页面 chunk 会变成
+   *     (wx.webpackJsonp = wx.webpackJsonp || []).push([[...], {...}])
+   * 自身不 require 任何东西，react / @tarojs/taro 全部依赖
+   * prebundle/remoteEntry.js 注册远程容器后才可解析。
+   * 容器注册与页面 push 的时序对不上时，页面模块永远不会被执行 →
+   * 打开就是「白屏 + 只有底部 tabbar」（tabbar 由 app.json 原生渲染，不受影响）。
+   */
+  compiler: {
+    type: 'webpack5',
+    prebundle: {
+      enable: false
+    }
+  },
   // ⚠️ 必须显式声明，否则 process.env.TARO_APP_API_BASE 不会被内联。
   //    小程序运行时没有 process 对象，运行时直接抛
   //    ReferenceError: process is not defined（构建能过，启动才炸）。
@@ -53,30 +69,29 @@ const config: UserConfigExport<'webpack5'> = {
       chain.merge({
         optimization: {
           minimize: true,
-          // ⚠️⚠️ 这两项**必须关掉**，否则生产包一打开就白屏。
+          // ⚠️⚠️ 这里**只能**调 minimize，splitChunks / runtimeChunk 必须保持 Taro 默认值。
           //
-          // 症状：`npm run dev:weapp` 正常，`npm run build:weapp` 白屏，
-          //        且 Console 里没有业务报错，只有 wx 引擎层的静默失败。
+          // 原因：Taro 4 的小程序产物里，app / comp / 每个页面都是**独立的 webpack 入口**。
+          // 一旦关掉 splitChunks，webpack 会把共享依赖（尤其是 `@tarojs/runtime`）
+          // **物理复制**进每一个入口文件。本项目实测：19 个 js 文件里
+          // 每个都有一份自己的 `Current = { app: null }`。
           //
-          // 原因：Taro 的默认优化会开 splitChunks + runtimeChunk，把代码拆成
-          //        runtime / common / vendors / taro 四个独立 js。webpack 产物之间
-          //        用 **CommonJS `require()`** 互连，于是 app.js 开头就是：
-          //            require("./common"),require("./vendors"),
-          //            require("./taro"),require("./runtime"),...
-          //        而**微信小程序运行时没有 require 这个全局对象**，第一行就抛
-          //        `require is not defined`，整个 App 起不来 → 纯白屏。
+          // 而 `Current` 是 @tarojs/runtime 的**单例**：
+          //   - `Current.app` 由 `createReactApp()` 赋值（只在 app.js 那一份里执行）
+          //   - 页面 `onLoad` 时用 `Current.app.mount(...)` 挂载 React 树
+          // 页面那份副本没人赋值 → 恒为 null →
+          //     TypeError: Cannot read property 'mount' of null
+          //         at mount  (@tarojs/runtime/dist/dsl/common.ts)
+          //         at onLoad (@tarojs/runtime/dist/dsl/common.ts)
+          // → 打开任何页面都白屏。
           //
-          // 为什么 dev 不炸：dev 模式不做这套 chunk 拆分，产物是单文件，
-          //        走 wx.webpackJsonp 机制（微信原生支持）而非 CommonJS。
+          // Taro 默认的 splitChunks 会把 `@tarojs/runtime` 抽成公共 chunk（taro.js），
+          // 配合 webpack 的全局 chunk 注册表（globalObject = wx），
+          // 所有入口共用**同一份模块实例**，`Current` 才是唯一的。
+          // 公共 chunk 之间用 `require("./taro.js")` 串联 —— 这是微信小程序官方支持的
+          // CommonJS 能力（小程序 JS 文件里可以 require 其它 JS 文件），不是问题。
           //
-          // 关掉后的代价：所有代码进一个 app.js，**无法并行加载**，
-          // 首屏字节数略增。对本项目（几十 KB 量级）完全可接受，
-          // 换来的是生产包一定能跑起来。
-          //
-          // 如果将来包体真的大到需要分包，正确做法是用小程序原生分包
-          // （app.config.ts 的 subPackages），而不是打开 webpack 的 splitChunks。
-          splitChunks: false,
-          runtimeChunk: false
+          // 结论：**splitChunks 是 Taro 小程序能跑起来的前提，不要关。**
         }
       })
     }
