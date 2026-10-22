@@ -1,5 +1,7 @@
 import Taro from '@tarojs/taro'
 import { AUTH_EXPIRED_CODES, BizCode, type ApiResult } from '@/types/api'
+import { redirectToLogin } from '@/utils/auth-redirect'
+import { clearToken, getToken, setToken } from '@/utils/token'
 
 /**
  * 统一请求层。
@@ -7,13 +9,13 @@ import { AUTH_EXPIRED_CODES, BizCode, type ApiResult } from '@/types/api'
  * 职责：
  * 1. 自动拼接 baseURL、自动带 Authorization: Bearer <token>
  * 2. 拆信封：HTTP 200 + code=0 才算成功，业务错误统一抛 BizError
- * 3. 登录态失效（401 / 40100 / 40101）→ 清理 token → 跳登录页
+ * 3. 登录态失效（带了 token 却被拒）→ 清理 token → 跳登录页
  * 4. 网络异常 → 抛 NetError，页面可提示「网络异常」而不是白屏
  *
  * 页面通过 try/catch + PageState 组件统一处理「加载中 / 空数据 / 请求失败 / 提交成功 / 网络异常」。
  */
 
-const TOKEN_STORAGE_KEY = 'nsm_token'
+export { getToken, setToken, clearToken } from '@/utils/token'
 
 /**
  * 后端地址。
@@ -41,44 +43,15 @@ export class NetError extends Error {
   }
 }
 
-let redirectingToLogin = false
-
-// ---------------------------------------------------------------- token 存取
-
-export function getToken(): string {
-  try {
-    return Taro.getStorageSync(TOKEN_STORAGE_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
-export function setToken(token: string): void {
-  try {
-    Taro.setStorageSync(TOKEN_STORAGE_KEY, token)
-  } catch {
-    /* 存储失败不阻断业务流程 */
-  }
-}
-
-export function clearToken(): void {
-  try {
-    Taro.removeStorageSync(TOKEN_STORAGE_KEY)
-  } catch {
-    /* ignore */
-  }
-}
-
-/** 登录失效：清 token 并跳登录页（带去重，避免并发请求重复跳转） */
+/**
+ * 登录失效：清 token 并跳登录页。
+ *
+ * 只在「本次请求带了 token 却被拒绝」时调用 —— 也就是**真的**登录态过期。
+ * 「本来就没登录」不归这里管，否则会和 useAuthGuard 各跳一次 → 连跳两个登录页。
+ */
 function handleAuthExpired(): void {
   clearToken()
-  if (redirectingToLogin) return
-  redirectingToLogin = true
-  Taro.showToast({ title: '登录已失效，请重新登录', icon: 'none', duration: 1500 })
-  setTimeout(() => {
-    redirectingToLogin = false
-    Taro.navigateTo({ url: '/pages/auth/login/index' })
-  }, 1200)
+  redirectToLogin({ toast: '登录已失效，请重新登录' })
 }
 
 // ---------------------------------------------------------------- 请求主体
@@ -103,9 +76,15 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, auth = true, silent = false } = options
 
   const header: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (auth) {
-    const token = getToken()
-    if (token) header.Authorization = `Bearer ${token}`
+  const token = auth ? getToken() : ''
+  if (token) header.Authorization = `Bearer ${token}`
+
+  // 需要登录的接口，但本地根本没有 token —— 别发请求了。
+  // 发出去只会拿到一个 401，然后被误当成「登录失效」，
+  // 既浪费一次往返，又可能和 useAuthGuard 各跳一次登录页。
+  // 「未登录」由 useAuthGuard 处理，「登录过期」才由这里处理。
+  if (auth && !token) {
+    throw new BizError(BizCode.UNAUTHORIZED, '请先登录')
   }
 
   let res: Taro.request.SuccessCallbackResult<ApiResult<T>>
@@ -126,7 +105,8 @@ export async function request<T>(options: RequestOptions): Promise<T> {
 
   // HTTP 层错误：401 登录失效 / 403 越权
   if (res.statusCode === 401) {
-    handleAuthExpired()
+    // 只有「带了 token 却被拒」才算登录失效
+    if (token) handleAuthExpired()
     throw new BizError(BizCode.UNAUTHORIZED, '登录已失效，请重新登录')
   }
   if (res.statusCode === 403) {
@@ -147,7 +127,8 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   // 业务失败
   if (body.code !== 0) {
     if (AUTH_EXPIRED_CODES.includes(body.code)) {
-      handleAuthExpired()
+      // 同上：带了 token 才是「过期」，没带就是「没登录」
+      if (token) handleAuthExpired()
       throw new BizError(body.code, body.message || '登录已失效')
     }
     if (!silent) Taro.showToast({ title: body.message || '操作失败', icon: 'none' })

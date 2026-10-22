@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
-import { clearToken, getToken, setToken } from '@/utils/request'
+import { clearToken, getToken, setToken } from '@/utils/token'
 import type { AuditStatus } from '@/types/domain'
 
 interface AuthState {

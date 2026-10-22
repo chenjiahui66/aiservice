@@ -18,7 +18,11 @@ export default function BoardPage() {
   const [date, setDate] = useState(todayStr())
 
   const fetcher = useCallback(() => fetchBoard(date), [date])
-  const { data, loading, error, reload } = usePageData<BoardVO>(fetcher, [date])
+  // refreshOnShow：微信会缓存 tab 页，切回来时不重新加载，
+  // 登录后回到台账必须是「已登录」的数据，不能停在旧状态。
+  const { data, loading, error, reload } = usePageData<BoardVO>(fetcher, [date], {
+    refreshOnShow: true
+  })
 
   // 最近 7 天横向切换，默认今天
   const days = Array.from({ length: 7 }, (_, i) => addDays(todayStr(), i))

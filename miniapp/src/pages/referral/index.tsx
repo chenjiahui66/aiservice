@@ -5,8 +5,8 @@ import PageState from '@/components/PageState'
 import { fetchReferral, fetchReferralStats, fetchMyPage, regenerateQr } from '@/api/provider'
 import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
-import { absoluteUrl, copyToClipboard, isWeapp } from '@/platform'
-import { getToken } from '@/utils/request'
+import { absoluteUrl, copyToClipboard, isWeapp, saveImageToAlbum } from '@/platform'
+import { getToken } from '@/utils/token'
 import type { ReferralInfoVO, ReferralStats } from '@/types/domain'
 
 /**
@@ -32,7 +32,7 @@ export default function ReferralPage() {
     ])
     return { info, stats, pageEnabled }
   }, [])
-  const { data, loading, error, reload } = usePageData(fetcher, [])
+  const { data, loading, error, reload } = usePageData(fetcher, [], { refreshOnShow: true })
 
   return (
     <View className='page'>
@@ -155,6 +155,18 @@ function ReferralPanel({
       </View>
 
       <View className='card'>
+        <View className='section-head' style={{ margin: '0 0 8rpx' }}>
+          <Text className='section-head__title'>客户扫码预约</Text>
+        </View>
+        <Text className='subtitle' style={{ display: 'block', marginBottom: '4rpx' }}>
+          客户用微信「扫一扫」这个码，就会直接进入你的服务主页：自己挑服务项目、填联系方式提交预约，订单自动落到你的今日台账，不用你再手工录一遍。
+        </Text>
+        <Text className='muted' style={{ display: 'block', marginBottom: '8rpx' }}>
+          {isDev
+            ? '当前是普通链接二维码（开发降级），扫出来是网页版；正式发布后会自动换成微信小程序码。'
+            : '把码保存到手机，发给客户、贴到微信群或朋友圈都行；客户扫的是你的专属码，订单只会进你的台账。'}
+        </Text>
+
         <QrImage info={info} />
 
         <View style={{ marginTop: '24rpx' }}>
@@ -195,6 +207,7 @@ function ReferralPanel({
 function QrImage({ info }: { info: ReferralInfoVO }) {
   const [localPath, setLocalPath] = useState('')
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'failed'>('idle')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!info.qrImageUrl) {
@@ -225,6 +238,19 @@ function QrImage({ info }: { info: ReferralInfoVO }) {
     }
   }, [info.qrImageUrl])
 
+  const onPreview = () => {
+    if (!localPath) return
+    Taro.previewImage({ urls: [localPath], current: localPath }).catch(() => {
+      Taro.showToast({ title: '预览失败', icon: 'none' })
+    })
+  }
+
+  const onSave = () => {
+    if (!localPath || saving) return
+    setSaving(true)
+    saveImageToAlbum(localPath).finally(() => setSaving(false))
+  }
+
   if (state === 'idle') {
     return (
       <View className='qr-box'>
@@ -250,9 +276,29 @@ function QrImage({ info }: { info: ReferralInfoVO }) {
   }
   return (
     <View className='qr-box'>
-      <Image className='qr-box__image' src={localPath} mode='aspectFit' />
+      <Image className='qr-box__image' src={localPath} mode='aspectFit' onClick={onPreview} />
       <Text className='muted' style={{ marginTop: '16rpx' }}>
         {info.qrModeLabel}
+      </Text>
+
+      <View className='row' style={{ gap: '16rpx', marginTop: '20rpx', width: '100%' }}>
+        <Button
+          className='btn btn--ghost grow'
+          onClick={onPreview}
+        >
+          预览大图
+        </Button>
+        <Button
+          className='btn grow'
+          loading={saving}
+          onClick={onSave}
+        >
+          保存到相册
+        </Button>
+      </View>
+
+      <Text className='muted' style={{ display: 'block', marginTop: '12rpx', textAlign: 'center' }}>
+        点「保存到相册」存到手机后可发微信 / 朋友圈；也可以长按图片直接保存
       </Text>
     </View>
   )

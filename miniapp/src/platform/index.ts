@@ -122,3 +122,57 @@ export function previewImage(url: string): void {
   }
   Taro.showToast({ title: '请在微信中打开以预览图片', icon: 'none' })
 }
+
+/**
+ * 保存图片到手机相册。
+ *
+ * 小程序里「下载到本地」= 保存到相册（微信没有「下载到文件夹」这个能力）。
+ * 需要「保存到相册」权限；用户拒绝过授权时要引导去设置页重新开启，
+ * 否则用户只会看到一句没头没尾的「保存失败」。
+ *
+ * @param filePath 本地临时文件路径（downloadFile / canvas 导出的 tempFilePath）
+ * @returns 是否保存成功
+ */
+export function saveImageToAlbum(filePath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!filePath) {
+      resolve(false)
+      return
+    }
+    if (!isWeapp()) {
+      Taro.showToast({ title: '当前环境不支持保存到相册', icon: 'none' })
+      resolve(false)
+      return
+    }
+
+    Taro.saveImageToPhotosAlbum({
+      filePath,
+      success: () => {
+        Taro.showToast({ title: '已保存到相册', icon: 'success' })
+        resolve(true)
+      },
+      fail: (err) => {
+        const errMsg = String((err as { errMsg?: string })?.errMsg || '')
+        // 用户拒绝过「保存到相册」授权
+        if (/auth deny|authorize|deny/i.test(errMsg)) {
+          Taro.showModal({
+            title: '需要相册权限',
+            content: '保存图片需要你授权「保存到相册」，去设置里开启后回来再点一次保存。',
+            confirmText: '去设置',
+            cancelText: '知道了',
+            success: (res) => {
+              if (res.confirm) {
+                Taro.openSetting({}).catch(() => {})
+              } else {
+                Taro.showToast({ title: '也可以长按图片直接保存', icon: 'none' })
+              }
+            }
+          })
+        } else {
+          Taro.showToast({ title: '保存失败，可长按图片保存', icon: 'none' })
+        }
+        resolve(false)
+      }
+    })
+  })
+}

@@ -51,20 +51,11 @@ console.log(`  js 文件: ${files.length} 个\n`);
 //    另外 dev / prod **两边**都必须关掉 prebundle（module federation）：
 //    开启时页面 chunk 只 push 到 wx.webpackJsonp，依赖 remoteEntry 注册远程容器，
 //    时序对不上页面模块就永远不执行 → 白屏 + 只有 tabbar。
-const CONFIG_DIR = path.resolve(__dirname, '..', 'miniapp', 'config');
-for (const name of ['dev.ts', 'prod.ts']) {
-  const p = path.join(CONFIG_DIR, name);
-  if (!fs.existsSync(p)) {
-    ok(false, `找不到配置文件 ${name}`);
-    continue;
-  }
-  const t = fs.readFileSync(p, 'utf8');
-  ok(!/splitChunks:\s*false/.test(t),
-    `${name} 没有关掉 splitChunks（关掉会让 runtime 被复制成 N 份 → 页面全白屏）`);
-  ok(!/runtimeChunk:\s*false/.test(t), `${name} 没有关掉 runtimeChunk`);
-  ok(/prebundle[\s\S]{0,120}enable:\s*false/.test(t),
-    `${name} 关掉了 prebundle（module federation 会让页面 chunk 永不执行）`);
-}
+// 断言本体在 tests/check-miniapp-config.cjs（不依赖产物，可单独跑，
+// 并挂在 npm 的 predev:weapp / prebuild:weapp 钩子上做前置闸门），
+// 这里只复用结果，避免两处各写一份、日后漂移。
+const { check: checkMiniappConfig } = require('./check-miniapp-config.cjs');
+for (const r of checkMiniappConfig()) ok(r.ok, r.msg);
 
 // 1. 不能有未内联的 process.env.TARO_APP_* 残留
 //
@@ -198,6 +189,10 @@ if (referralText !== null) {
   const t = referralText;
   ok(t.includes('notice--danger'), '推广页含「主页未开启」的醒目告警样式');
   ok(hasText(t, '去开启服务主页'), '推广页含「去开启服务主页」入口');
+  // 推广码要能真正用起来：能存到手机、文案说清楚客户扫码会发生什么
+  ok(hasText(t, '保存到相册'), '推广页含「保存到相册」（把码存到手机才能发给客户）');
+  ok(hasText(t, '客户扫码预约'), '推广页说明了「客户扫码预约」这件事');
+  ok(t.includes('saveImageToPhotosAlbum'), '推广页接入了保存到相册的微信能力');
 } else {
   ok(false, '找不到推广页产物 pages/referral/index.js');
 }

@@ -20,7 +20,9 @@ export default function CustomersPage() {
     () => fetchCustomers(submitted || undefined, page, PAGE_SIZE),
     [submitted, page]
   )
-  const { data, loading, error, reload } = usePageData(fetcher, [submitted, page])
+  const { data, loading, error, reload } = usePageData(fetcher, [submitted, page], {
+    refreshOnShow: true
+  })
 
   const records = data?.records || []
   const total = data?.total || 0

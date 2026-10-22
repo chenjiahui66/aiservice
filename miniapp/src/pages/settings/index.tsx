@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { isWeapp } from '@/platform'
 import { BASE_URL } from '@/utils/request'
+import { redirectToLogin } from '@/utils/auth-redirect'
 
 /** 我的账号与设置 */
 export default function SettingsPage() {
@@ -21,7 +22,9 @@ export default function SettingsPage() {
       success: (res) => {
         if (!res.confirm) return
         signOut()
-        Taro.reLaunch({ url: '/pages/auth/login/index' })
+        // 走统一入口：signOut 会把 token 清空，useAuthGuard 也会触发跳转，
+        // 两边都跳的话登录页会被压两次。
+        redirectToLogin({ toast: null })
       }
     })
   }

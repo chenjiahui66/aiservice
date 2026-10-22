@@ -38,7 +38,9 @@ export default function OrdersPage() {
       }),
     [status, submittedKeyword, page]
   )
-  const { data, loading, error, reload } = usePageData(fetcher, [status, submittedKeyword, page])
+  const { data, loading, error, reload } = usePageData(fetcher, [status, submittedKeyword, page], {
+    refreshOnShow: true
+  })
 
   const records = data?.records || []
   const total = data?.total || 0

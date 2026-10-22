@@ -25,7 +25,9 @@ export default function ProfilePage() {
     setAuditStatus(p.auditStatus, storeRemark)
     return p
   }, [setAuditStatus, storeRemark])
-  const { data, loading, error, reload } = usePageData<ProviderProfile>(fetcher, [])
+  const { data, loading, error, reload } = usePageData<ProviderProfile>(fetcher, [], {
+    refreshOnShow: true
+  })
 
   const bannerClass =
     data?.auditStatus === 'APPROVED'
