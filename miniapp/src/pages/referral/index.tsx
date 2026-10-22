@@ -81,6 +81,17 @@ export default function ReferralPage() {
           <Text className='setting-item__value'>›</Text>
         </View>
       </View>
+
+      {/* 意见反馈入口：与服务主页（pages/provider）底部保持同一套样式，
+          服务者在推广页就能直接提意见，不用先去「我的」里翻。 */}
+      <View
+        className='feedback-entry'
+        onClick={() => Taro.navigateTo({ url: '/pages/feedback/index' })}
+      >
+        <Text className='feedback-entry__title'>意见反馈</Text>
+        <Text className='feedback-entry__desc'>推广用起来有问题？点这里告诉我们</Text>
+        <Text className='feedback-entry__arrow'>›</Text>
+      </View>
     </View>
   )
 }

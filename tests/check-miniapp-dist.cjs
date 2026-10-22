@@ -193,6 +193,10 @@ if (referralText !== null) {
   ok(hasText(t, '保存到相册'), '推广页含「保存到相册」（把码存到手机才能发给客户）');
   ok(hasText(t, '客户扫码预约'), '推广页说明了「客户扫码预约」这件事');
   ok(t.includes('saveImageToPhotosAlbum'), '推广页接入了保存到相册的微信能力');
+  // 底部意见反馈入口：与服务主页（pages/provider）同一套样式
+  ok(t.includes('feedback-entry'), '推广页底部含意见反馈入口（与服务主页同款样式）');
+  ok(hasText(t, '意见反馈'), '推广页底部含「意见反馈」文案');
+  ok(t.includes('/pages/feedback/index'), '推广页的意见反馈入口跳转到反馈页');
 } else {
   ok(false, '找不到推广页产物 pages/referral/index.js');
 }

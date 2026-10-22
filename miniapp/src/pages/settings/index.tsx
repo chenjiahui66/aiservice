@@ -112,10 +112,6 @@ export default function SettingsPage() {
           <Text>运行环境</Text>
           <Text className='setting-item__value'>{isWeapp() ? '微信小程序' : '非微信环境（能力受限）'}</Text>
         </View>
-        <View className='setting-item'>
-          <Text>接口地址</Text>
-          <Text className='setting-item__value mono'>{BASE_URL}</Text>
-        </View>
         <View className='setting-item' onClick={onClearCache}>
           <Text>本地缓存</Text>
           <Text className='setting-item__value'>查看占用 ›</Text>
