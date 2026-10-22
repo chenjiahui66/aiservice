@@ -88,6 +88,106 @@
   line-height: 1.5;
 }
 
+/* ---------------- 二维码 + 视频推广指导（并排） ---------------- */
+.qr-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  width: 100%;
+}
+
+/* 左边：二维码本体 */
+.qr-row__main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 右边：视频推广指导入口 */
+.qr-row__side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.video-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  width: 100%;
+  padding: 24rpx 12rpx;
+  background: var(--grey-weak);
+  border: 1rpx dashed var(--line-strong);
+  border-radius: var(--radius-md);
+}
+
+.video-tile:active {
+  opacity: 0.75;
+}
+
+.video-tile__icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--text-inverse);
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.video-tile__title {
+  font-size: 25rpx;
+  color: var(--text-1);
+  text-align: center;
+  line-height: 1.35;
+}
+
+.video-tile__desc {
+  font-size: 21rpx;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ---------------- 推广指导视频播放器 ---------------- */
+.video-player-box {
+  width: 100%;
+}
+
+.video-player {
+  width: 100%;
+  height: 356rpx;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.video-player-box__error {
+  width: 100%;
+  min-height: 240rpx;
+  padding: 28rpx 24rpx;
+  background: var(--red-weak);
+  border: 1rpx solid var(--red);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-player-box__error-text {
+  font-size: 24rpx;
+  color: var(--red);
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
 .code-box {
   display: flex;
   align-items: center;

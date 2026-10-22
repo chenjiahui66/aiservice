@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, Image, Button } from '@tarojs/components'
+import { View, Text, Image, Button, Video } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import PageState from '@/components/PageState'
 import { fetchReferral, fetchReferralStats, fetchMyPage, regenerateQr } from '@/api/provider'
@@ -7,6 +7,7 @@ import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { absoluteUrl, copyToClipboard, isWeapp, saveImageToAlbum } from '@/platform'
 import { getToken } from '@/utils/token'
+import { PROMO_VIDEO_DESC, PROMO_VIDEO_TITLE, PROMO_VIDEO_URL } from '@/constants/promo-video'
 import type { ReferralInfoVO, ReferralStats } from '@/types/domain'
 
 /**
@@ -107,6 +108,8 @@ function ReferralPanel({
   onChanged: () => void
 }) {
   const [generating, setGenerating] = useState(false)
+  /** 是否正在看推广指导视频 */
+  const [showVideo, setShowVideo] = useState(false)
   const isDev = info.qrMode === 'DEV'
 
   const doGenerate = async () => {
@@ -178,7 +181,16 @@ function ReferralPanel({
             : '把码保存到手机，发给客户、贴到微信群或朋友圈都行；客户扫的是你的专属码，订单只会进你的台账。'}
         </Text>
 
-        <QrImage info={info} />
+        {showVideo ? (
+          <VideoGuidePlayer onClose={() => setShowVideo(false)} />
+        ) : (
+          <QrImage
+            info={info}
+            aside={
+              <VideoGuideTile onClick={() => setShowVideo(true)} />
+            }
+          />
+        )}
 
         <View style={{ marginTop: '24rpx' }}>
           <Button
@@ -214,8 +226,10 @@ function ReferralPanel({
  * 二维码图片。
  * 后端该接口需要登录态，`<Image src>` 无法带 Authorization，
  * 因此用 downloadFile 带 token 拉到临时文件后再展示。
+ *
+ * `aside`：二维码右侧的插槽（当前放「视频推广指导」入口）。
  */
-function QrImage({ info }: { info: ReferralInfoVO }) {
+function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNode }) {
   const [localPath, setLocalPath] = useState('')
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'failed'>('idle')
   const [saving, setSaving] = useState(false)
@@ -265,32 +279,46 @@ function QrImage({ info }: { info: ReferralInfoVO }) {
   if (state === 'idle') {
     return (
       <View className='qr-box'>
-        <View className='qr-box__placeholder'>还没有生成二维码，点下方按钮生成</View>
+        <View className='qr-row'>
+          <View className='qr-box__placeholder'>还没有生成二维码，点下方按钮生成</View>
+          <View className='qr-row__side'>{aside}</View>
+        </View>
       </View>
     )
   }
   if (state === 'loading') {
     return (
       <View className='qr-box'>
-        <View className='qr-box__placeholder'>二维码加载中…</View>
+        <View className='qr-row'>
+          <View className='qr-box__placeholder'>二维码加载中…</View>
+          <View className='qr-row__side'>{aside}</View>
+        </View>
       </View>
     )
   }
   if (state === 'failed') {
     return (
       <View className='qr-box'>
-        <View className='qr-box__placeholder'>
-          二维码加载失败，请检查网络后重新生成
+        <View className='qr-row'>
+          <View className='qr-box__placeholder'>
+            二维码加载失败，请检查网络后重新生成
+          </View>
+          <View className='qr-row__side'>{aside}</View>
         </View>
       </View>
     )
   }
   return (
     <View className='qr-box'>
-      <Image className='qr-box__image' src={localPath} mode='aspectFit' onClick={onPreview} />
-      <Text className='muted' style={{ marginTop: '16rpx' }}>
-        {info.qrModeLabel}
-      </Text>
+      <View className='qr-row'>
+        <View className='qr-row__main'>
+          <Image className='qr-box__image' src={localPath} mode='aspectFit' onClick={onPreview} />
+          <Text className='muted' style={{ marginTop: '16rpx' }}>
+            {info.qrModeLabel}
+          </Text>
+        </View>
+        <View className='qr-row__side'>{aside}</View>
+      </View>
 
       <View className='row' style={{ gap: '16rpx', marginTop: '20rpx', width: '100%' }}>
         <Button
@@ -311,6 +339,57 @@ function QrImage({ info }: { info: ReferralInfoVO }) {
       <Text className='muted' style={{ display: 'block', marginTop: '12rpx', textAlign: 'center' }}>
         点「保存到相册」存到手机后可发微信 / 朋友圈；也可以长按图片直接保存
       </Text>
+    </View>
+  )
+}
+
+/**
+ * 视频推广指导入口（排在二维码旁边）。
+ * 用途：把「怎么用这个小程序、怎么用这个码去推广」拍成一段视频，
+ * 服务者可以先看懂了再教给客户。
+ */
+function VideoGuideTile({ onClick }: { onClick: () => void }) {
+  return (
+    <View className='video-tile' onClick={onClick}>
+      <View className='video-tile__icon'>▶</View>
+      <Text className='video-tile__title'>{PROMO_VIDEO_TITLE}</Text>
+      <Text className='video-tile__desc'>{PROMO_VIDEO_DESC}</Text>
+    </View>
+  )
+}
+
+/** 推广指导视频播放器 */
+function VideoGuidePlayer({ onClose }: { onClose: () => void }) {
+  const [failed, setFailed] = useState(false)
+
+  return (
+    <View className='video-player-box'>
+      {failed ? (
+        <View className='video-player-box__error'>
+          <Text className='video-player-box__error-text'>
+            视频加载失败：{PROMO_VIDEO_URL}
+          </Text>
+          <Text className='muted' style={{ display: 'block', marginTop: '8rpx', textAlign: 'center' }}>
+            请确认视频地址是 https 直链，且域名已加入小程序的 downloadFile 合法域名
+          </Text>
+        </View>
+      ) : (
+        <Video
+          className='video-player'
+          src={PROMO_VIDEO_URL}
+          controls
+          autoplay
+          objectFit='contain'
+          showCenterPlayBtn
+          onError={() => setFailed(true)}
+        />
+      )}
+
+      <View style={{ marginTop: '20rpx' }}>
+        <Button className='btn btn--ghost btn--block' onClick={onClose}>
+          返回推广码
+        </Button>
+      </View>
     </View>
   )
 }

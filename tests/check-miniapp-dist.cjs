@@ -6,6 +6,8 @@ const EXPECT = 'https://community.aindgc.com';
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? '  [OK] ' : '  [!!] ') + m); if (!c) fail++; };
+/** 只提醒不阻断：留给「暂时占位、后续替换」这类项 */
+const note = (m) => { console.log('  [提醒] ' + m); };
 
 if (!fs.existsSync(DIST)) {
   console.error(`[FAIL] 找不到产物目录: ${DIST}`);
@@ -197,6 +199,12 @@ if (referralText !== null) {
   ok(t.includes('feedback-entry'), '推广页底部含意见反馈入口（与服务主页同款样式）');
   ok(hasText(t, '意见反馈'), '推广页底部含「意见反馈」文案');
   ok(t.includes('/pages/feedback/index'), '推广页的意见反馈入口跳转到反馈页');
+  // 视频推广指导入口：排在二维码旁边，点了就地播放
+  ok(t.includes('video-tile'), '推广页含「视频推广指导」入口（与二维码并排）');
+  ok(hasText(t, '视频推广指导'), '推广页含「视频推广指导」文案');
+  ok(t.includes('video-player'), '推广页含视频播放器');
+  ok(t.includes('PROMO_VIDEO_URL') || t.includes('promo-guide.mp4') || t.includes('example.com'),
+    '推广页的视频地址已内联进产物');
 } else {
   ok(false, '找不到推广页产物 pages/referral/index.js');
 }
@@ -271,6 +279,29 @@ if (fs.existsSync(POLICY_SRC) && fs.existsSync(CONSENT_SRC)) {
     `前后端协议版本一致（前端 ${fv} / 后端 ${bv}）`);
 } else {
   ok(false, '找不到 policy.ts 或 ConsentService.java，无法校验协议版本');
+}
+
+// 13. 🔴 推广指导视频的地址：占位符必须换成真实直链
+//
+//     视频地址写在 miniapp/src/constants/promo-video.ts（只改那一处就行）。
+//     现在是占位地址 example.com，真机上会黑屏 —— 但它不阻断构建，
+//     所以这里只提醒；换成真实地址后自动变成 [OK]。
+const VIDEO_SRC = path.resolve(__dirname, '..', 'miniapp', 'src', 'constants', 'promo-video.ts');
+if (fs.existsSync(VIDEO_SRC)) {
+  const vt = fs.readFileSync(VIDEO_SRC, 'utf8');
+  const isPlaceholder = /example\.com/i.test(vt);
+  if (isPlaceholder) {
+    note('推广指导视频地址还是占位符（example.com），上线前请替换 miniapp/src/constants/promo-video.ts');
+    note('替换后还要把视频域名加进小程序后台的 downloadFile 合法域名，否则真机黑屏');
+  } else {
+    ok(true, '推广指导视频地址已替换为真实链接');
+    const m = vt.match(/PROMO_VIDEO_URL\s*=\s*'([^']+)'/);
+    if (m && !/^https:\/\//.test(m[1])) {
+      note(`推广指导视频地址不是 https（${m[1]}），真机会被直接拦掉`);
+    }
+  }
+} else {
+  note('找不到 miniapp/src/constants/promo-video.ts');
 }
 
 /**
