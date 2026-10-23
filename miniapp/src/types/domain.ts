@@ -330,5 +330,9 @@ export interface ReferralStats {
   completedCount: number
   pendingCount: number
   totalCustomers: number
+  /**
+   * 完成率，单位是**百分比（0~100）**，不是 0~1 的比率。
+   * 100 表示 100%。见 ReferralCodeService.buildStats。
+   */
   completionRate: number
 }

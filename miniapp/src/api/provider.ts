@@ -138,7 +138,19 @@ export function fetchCustomerDetail(id: number) {
 
 export function updateCustomer(
   id: number,
-  data: { name?: string; phone?: string; community?: string; address?: string; nextServiceAt?: string | null }
+  data: {
+    name?: string
+    phone?: string
+    community?: string
+    address?: string
+    /**
+     * ISO 日期时间，如 `2026-10-25T00:00:00`。
+     * ⚠️ 必须带时间部分：后端字段是 LocalDateTime，
+     *    直接发 Picker 给的纯日期 `2026-10-25` 会反序列化失败报「请求体格式不正确」。
+     *    用 `utils/date` 的 `toDateTimeStr()` 生成，别手拼。
+     */
+    nextServiceAt?: string | null
+  }
 ) {
   return request<CustomerDetailVO>({
     url: `/api/provider/customers/${id}`,

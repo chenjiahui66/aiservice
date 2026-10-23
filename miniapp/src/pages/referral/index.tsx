@@ -409,8 +409,21 @@ function VideoGuidePlayer({ url, onClose }: { url: string; onClose: () => void }
 
 /** 推广统计：全部为后端真实统计，无固定值 */
 function StatsPanel({ stats }: { stats: ReferralStats }) {
-  const rate =
-    typeof stats.completionRate === 'number' ? Math.round(stats.completionRate * 100) : 0
+  /**
+   * ⚠️ completionRate 的单位是**百分比（0~100）**，不是 0~1 的比率。
+   *
+   * 后端 ReferralCodeService.buildStats 里算的是
+   *   Math.round(completedCount * 10000 / total) / 100
+   * 也就是「保留两位小数的百分数」，100 表示 100%。
+   *
+   * 这里以前又乘了一次 100，页面上就显示成了 10000%。
+   * clamp 是第二道保险：万一后端哪天改成返回 0~1，
+   * 顶多显示成 1%，也绝不会再冒出 10000% 这种一眼假的数字。
+   */
+  const rate = Math.min(
+    100,
+    Math.max(0, Math.round(typeof stats.completionRate === 'number' ? stats.completionRate : 0))
+  )
 
   return (
     <View>

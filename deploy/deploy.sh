@@ -31,6 +31,17 @@ fail()  { echo -e "${RED}[FAIL]${NC} $*" >&2; exit 1; }
 
 trap 'fail "部署中断，行号 $LINENO"' ERR
 
+# ⚠️ 读 .env 的值必须容错。
+#
+#    坑：`X=$(grep -E "^X=" .env | cut -d= -f2)` 在 .env 缺 X 这一行时，
+#    grep 返回 1 → pipefail + set -e 让脚本**静默退出**（零输出、退出码 1），
+#    连本脚本自己写的兜底 `X=${X:-默认值}` 都走不到。
+#    migrate.sh 上就是这么定位了两个小时的。
+read_env() {
+  # tail -1 取最后一次赋值；-f2- 保证值里含 '=' 时不被截断
+  grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true
+}
+
 # ---------------------------------------------------------------------
 # 0. 环境预检
 # ---------------------------------------------------------------------
@@ -142,14 +153,16 @@ fill "BOOTSTRAP_ADMIN_ENABLED" "true"
 
 # 管理员账号：口令由管理员在 .env 里设置，不自动生成
 # —— 账号密码必须由人明确决定，自动生成等于没人知道密码。
-if ! grep -qE '^ADMIN_USERNAME=.+' "$ENV_FILE"; then
-  sed -i 's|^ADMIN_USERNAME=.*|ADMIN_USERNAME=admin|' "$ENV_FILE"
-fi
+#
+# ⚠️ 这里用 fill 而不是 sed：fill 同时处理「键存在但值为空」和「键根本不存在」
+#    两种情况；sed 只能改已存在的行，键缺失时静默无效，
+#    后面 grep ADMIN_USERNAME 会因 set -e 静默退出。
+fill "ADMIN_USERNAME" "admin"
 if ! grep -qE '^ADMIN_PASSWORD=.+' "$ENV_FILE"; then
   fail "请在 $ENV_FILE 中设置 ADMIN_PASSWORD（管理员登录口令）。
   该口令只存在于服务器本机文件，不会进入任何提交文件。"
 fi
-ok "管理员账号: $(grep -E '^ADMIN_USERNAME=' "$ENV_FILE" | cut -d= -f2)"
+ok "管理员账号: $(read_env ADMIN_USERNAME)"
 
 chmod 600 "$ENV_FILE"
 ok "deploy/.env 就绪（权限 600）"
@@ -256,7 +269,7 @@ echo
 echo "============================================================"
 docker compose -f "$COMPOSE" --env-file "$ENV_FILE" ps
 echo "------------------------------------------------------------"
-ADMIN_U=$(grep -E '^ADMIN_USERNAME=' "$ENV_FILE" | cut -d= -f2)
+ADMIN_U=$(read_env ADMIN_USERNAME)
 echo "  管理后台: http://community.aindgc.com  (网关接入后可用)"
 echo "  HTTPS:    需完成网关证书签发后才可用"
 echo "  自检:     docker exec nb-admin wget -qO- http://localhost/v3/api-docs"

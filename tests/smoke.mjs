@@ -235,6 +235,12 @@ const today = nextBookableDate();
   ok('A 累计订单数=1', stats.json?.data?.totalBookingCount === 1, `实际=${stats.json?.data?.totalBookingCount}`);
   ok('A 完成数=1', stats.json?.data?.completedCount === 1);
   ok('A 访问量≥1（真实计数）', (refA.json?.data?.visitCount ?? 0) >= 0);
+  // 🔴 完成率的**单位**是百分比（0~100），不是 0~1 的比率。
+  //    小程序曾经又乘了一次 100，页面上显示成 10000%。
+  //    这里把契约钉死：1 单全部完成 → 必须是 100，不能是 1 或 10000。
+  ok('完成率单位是百分比（0~100）',
+    stats.json?.data?.completionRate === 100,
+    `实际=${stats.json?.data?.completionRate}`);
 
   section('15. 停用的服务者不能继续接收新预约');
   await api('POST', `/api/admin/providers/${providerB.providerId}/status`,
@@ -256,6 +262,54 @@ const today = nextBookableDate();
   ok('服务者数 ≥2', dash.json?.data?.totalProviders >= 2, `实际=${dash.json?.data?.totalProviders}`);
   ok('订单数 ≥2', dash.json?.data?.totalOrders >= 2, `实际=${dash.json?.data?.totalOrders}`);
   ok('概览标注小程序码模式', ['REAL', 'DEV'].includes(dash.json?.data?.wechatCodeMode));
+
+  // 🔴 客户档案编辑：nextServiceAt 的日期/时间格式兼容
+  //
+  //    真实故障：小程序 <Picker mode='date'> 只给 "2026-10-25"，
+  //    而 DTO 字段是 LocalDateTime，Jackson 解析纯日期失败 →
+  //    HttpMessageNotReadableException → 前端只看到「请求体格式不正确」。
+  //    现在后端用容错反序列化，纯日期按当天 00:00:00 处理，
+  //    完整的 ISO 日期时间也照常接受 —— 两种都要能存进去。
+  section('17. 客户档案编辑：复购日期格式兼容');
+  const custList = await api('GET', '/api/provider/customers?page=1&size=20', { token: providerA.token });
+  const anyCustomer = custList.json?.data?.records?.[0] ?? custList.json?.data?.list?.[0];
+  if (!anyCustomer?.id) {
+    ok('能拿到 A 名下的客户用于编辑测试', false,
+      `实际=${JSON.stringify(custList.json?.data)}`);
+  } else {
+    const cid = anyCustomer.id;
+    // 1) 纯日期（小程序日期选择器的原样输出）
+    const upDateOnly = await api('PUT', `/api/provider/customers/${cid}`, {
+      token: providerA.token,
+      body: { name: '客户甲', nextServiceAt: '2026-12-01' },
+    });
+    ok('纯日期 2026-12-01 能保存', upDateOnly.json?.code === 0,
+      `实际 code=${upDateOnly.json?.code} msg=${upDateOnly.json?.message}`);
+    ok('纯日期按当天零点落库',
+      String(upDateOnly.json?.data?.nextServiceAt ?? '').startsWith('2026-12-01T00:00'),
+      `实际=${upDateOnly.json?.data?.nextServiceAt}`);
+
+    // 2) 完整 ISO 日期时间
+    const upIso = await api('PUT', `/api/provider/customers/${cid}`, {
+      token: providerA.token,
+      body: { name: '客户甲', nextServiceAt: '2026-12-02T15:30:00' },
+    });
+    ok('完整 ISO 日期时间能保存', upIso.json?.code === 0,
+      `实际 code=${upIso.json?.code} msg=${upIso.json?.message}`);
+    ok('ISO 时间被原样保留',
+      String(upIso.json?.data?.nextServiceAt ?? '').startsWith('2026-12-02T15:30'),
+      `实际=${upIso.json?.data?.nextServiceAt}`);
+
+    // 3) 非法格式必须被明确拒绝，而不是含糊的「格式不正确」
+    const upBad = await api('PUT', `/api/provider/customers/${cid}`, {
+      token: providerA.token,
+      body: { name: '客户甲', nextServiceAt: '下周三' },
+    });
+    ok('非法日期被拒（40000）', upBad.json?.code === 40000, `实际 code=${upBad.json?.code}`);
+    ok('拒绝时给出可读的格式说明',
+      /2026-10-25|时间格式/.test(upBad.json?.message || ''),
+      `实际=${upBad.json?.message}`);
+  }
 
   console.log(`\n${'='.repeat(52)}`);
   console.log(`通过 ${pass} 项，失败 ${fail} 项`);

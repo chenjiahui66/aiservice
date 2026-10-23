@@ -7,7 +7,7 @@ import { fetchCustomerDetail, updateCustomer } from '@/api/provider'
 import { usePageData, toMessage } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { getQueryParam, makePhoneCall } from '@/platform'
-import { getBookableRange, todayStr } from '@/utils/date'
+import { getBookableRange, todayStr, toDateTimeStr, fromDateTimeStr } from '@/utils/date'
 import type { CustomerDetailVO, OrderVO } from '@/types/domain'
 
 /** 客户详情：资料 + 复购计划 + 历史订单 */
@@ -96,7 +96,7 @@ export default function CustomerDetailPage() {
 
 function fmt(v: string | null | undefined): string {
   if (!v) return '—'
-  return String(v).slice(0, 10)
+  return fromDateTimeStr(v)
 }
 
 /** 编辑客户资料与复购计划 */
@@ -114,7 +114,7 @@ function EditCard({
   const [community, setCommunity] = useState(data.customer.community || '')
   const [address, setAddress] = useState(data.customer.address || '')
   const [nextServiceAt, setNextServiceAt] = useState(
-    data.customer.nextServiceAt ? String(data.customer.nextServiceAt).slice(0, 10) : ''
+    fromDateTimeStr(data.customer.nextServiceAt)
   )
   const [saving, setSaving] = useState(false)
 
@@ -133,7 +133,10 @@ function EditCard({
         phone: phone.trim(),
         community: community.trim(),
         address: address.trim(),
-        nextServiceAt: nextServiceAt ? nextServiceAt : null
+        // ⚠️ 必须补时间部分：Picker 给的是 "2026-10-25"，
+        //    后端 nextServiceAt 是 LocalDateTime，直接发纯日期会反序列化失败，
+        //    报「请求体格式不正确」——用户看到的就是「保存没反应」。
+        nextServiceAt: nextServiceAt ? toDateTimeStr(nextServiceAt) : null
       })
       Taro.showToast({ title: '已保存', icon: 'success' })
       onSaved()

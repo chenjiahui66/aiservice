@@ -76,6 +76,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<Void> handleNotReadable(HttpMessageNotReadableException e) {
+        // 光一句「请求体格式不正确」用户完全不知道该改哪里。
+        // Jackson 的原始信息里带着「是哪个字段、收到的值是什么、期望什么格式」，
+        // 而且这些值本来就是他自己提交上来的，透出对定位有帮助。
+        // 只在确实是 Jackson 的映射错误时透出，别的一律走通用文案，避免泄漏内部细节。
+        Throwable cause = e.getMostSpecificCause();
+        if (cause instanceof com.fasterxml.jackson.databind.JsonMappingException jme
+                && jme.getOriginalMessage() != null) {
+            return Result.fail(ResultCode.PARAM_ERROR, jme.getOriginalMessage());
+        }
         return Result.fail(ResultCode.PARAM_ERROR, "请求体格式不正确");
     }
 

@@ -34,6 +34,28 @@ export function addDays(dateStr: string, days: number): string {
   return toDateStr(d)
 }
 
+/**
+ * YYYY-MM-DD → 后端 LocalDateTime 需要的 ISO 字符串（当天 00:00:00）。
+ *
+ * ⚠️ 小程序的 `<Picker mode='date'>` 只能给出纯日期，
+ *    而后端 DTO 里这类字段是 LocalDateTime，Jackson 解析纯日期会失败 →
+ *    HttpMessageNotReadableException → 前端收到「请求体格式不正确」。
+ *    凡是「UI 只能选日期、后端要时间」的字段，提交前都要过这一道。
+ *
+ * 实例：客户档案的「下次复购日期」。
+ */
+export function toDateTimeStr(dateStr: string): string {
+  return `${dateStr}T00:00:00`
+}
+
+/**
+ * 后端 LocalDateTime 字符串 → YYYY-MM-DD。
+ * 后端返回的是 "2026-10-25T00:00:00"，展示/回填给 Picker 时只要日期部分。
+ */
+export function fromDateTimeStr(v: string | null | undefined): string {
+  return v ? String(v).slice(0, 10) : ''
+}
+
 /** 星期几，0=周日 */
 export function getWeekday(dateStr: string): number {
   return parseDate(dateStr).getDay()

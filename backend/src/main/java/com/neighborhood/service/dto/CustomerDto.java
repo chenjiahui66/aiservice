@@ -1,5 +1,7 @@
 package com.neighborhood.service.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.neighborhood.service.common.FlexibleLocalDateTimeDeserializer;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -55,7 +57,14 @@ public final class CustomerDto {
         @Size(max = 500, message = "客户备注过长")
         private String remark;
 
-        /** 复购计划：下次服务时间 */
+        /**
+         * 复购计划：下次服务时间。
+         *
+         * <p>UI 侧是日期选择器，只能给出 {@code 2026-10-25} 这样的纯日期，
+         * 所以这里用容错反序列化：纯日期按当天 00:00:00 处理，
+         * 也照常接受完整的 ISO 日期时间。</p>
+         */
+        @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
         private LocalDateTime nextServiceAt;
     }
 
