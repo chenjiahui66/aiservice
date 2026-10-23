@@ -205,7 +205,7 @@ function ReferralPanel({
         {/* 视频推广指导：整行入口，放在「保存到相册」正下方。
             早先做成二维码右侧的小方块，实测太不显眼 —— 服务者根本找不到，
             反馈是「配了但没看到」。整行入口一眼就能看见。 */}
-        {!showVideo && (
+        {!!promoVideoUrl && (
           <View
             className={`video-entry ${promoVideoUrl ? '' : 'video-entry--off'}`}
             onClick={onOpenVideo}
