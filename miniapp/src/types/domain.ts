@@ -308,6 +308,11 @@ export interface ReferralInfoVO {
   visitCount: number
   bookingCount: number
   shareText: string
+  /**
+   * 推广指导视频的 https 直链，由管理员在「系统基础设置」里配置。
+   * 为空表示还没配置，此时不显示「视频推广指导」入口。
+   */
+  promoVideoUrl?: string | null
   createdAt?: string | null
 }
 

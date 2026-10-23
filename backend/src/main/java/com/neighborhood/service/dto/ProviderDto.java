@@ -91,6 +91,13 @@ public final class ProviderDto {
         private LocalDateTime lastVisitAt;
         /** 可直接复制的推广文案 */
         private String shareText;
+        /**
+         * 推广指导视频的 https 直链，由管理员在「系统基础设置」里配置。
+         *
+         * <p>为空表示还没配置，小程序据此**不显示**「视频推广指导」入口 ——
+         * 免得服务者点开一个播不出来的东西。</p>
+         */
+        private String promoVideoUrl;
     }
 
     /** 推广统计（仅真实数据）。 */

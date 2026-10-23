@@ -7,7 +7,7 @@ import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { absoluteUrl, copyToClipboard, isWeapp, saveImageToAlbum } from '@/platform'
 import { getToken } from '@/utils/token'
-import { PROMO_VIDEO_DESC, PROMO_VIDEO_TITLE, PROMO_VIDEO_URL } from '@/constants/promo-video'
+import { PROMO_VIDEO_DESC, PROMO_VIDEO_TITLE } from '@/constants/promo-video'
 import type { ReferralInfoVO, ReferralStats } from '@/types/domain'
 
 /**
@@ -111,6 +111,12 @@ function ReferralPanel({
   /** 是否正在看推广指导视频 */
   const [showVideo, setShowVideo] = useState(false)
   const isDev = info.qrMode === 'DEV'
+  /**
+   * 推广指导视频地址：管理员在管理后台「系统基础设置」里配（promo.video.url），
+   * 后端每次返回推广信息时一起下发。为空 = 还没配，就**不显示**这个入口，
+   * 免得服务者点开一个播不出来的东西。
+   */
+  const promoVideoUrl = (info.promoVideoUrl ?? '').trim()
 
   const doGenerate = async () => {
     if (generating) return
@@ -182,12 +188,12 @@ function ReferralPanel({
         </Text>
 
         {showVideo ? (
-          <VideoGuidePlayer onClose={() => setShowVideo(false)} />
+          <VideoGuidePlayer url={promoVideoUrl} onClose={() => setShowVideo(false)} />
         ) : (
           <QrImage
             info={info}
             aside={
-              <VideoGuideTile onClick={() => setShowVideo(true)} />
+              promoVideoUrl ? <VideoGuideTile onClick={() => setShowVideo(true)} /> : undefined
             }
           />
         )}
@@ -234,6 +240,13 @@ function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNod
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'failed'>('idle')
   const [saving, setSaving] = useState(false)
 
+  /**
+   * 没有右侧插槽时（= 后台还没配推广指导视频），二维码回到卡片正中。
+   *
+   * 视频入口在时是「左码 + 右入口」并排；不在时不该留一截空白把码挤到左边。
+   */
+  const rowClass = aside ? 'qr-row' : 'qr-row qr-row--solo'
+
   useEffect(() => {
     if (!info.qrImageUrl) {
       setState('idle')
@@ -279,9 +292,9 @@ function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNod
   if (state === 'idle') {
     return (
       <View className='qr-box'>
-        <View className='qr-row'>
+        <View className={rowClass}>
           <View className='qr-box__placeholder'>还没有生成二维码，点下方按钮生成</View>
-          <View className='qr-row__side'>{aside}</View>
+          {aside && <View className='qr-row__side'>{aside}</View>}
         </View>
       </View>
     )
@@ -289,9 +302,9 @@ function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNod
   if (state === 'loading') {
     return (
       <View className='qr-box'>
-        <View className='qr-row'>
+        <View className={rowClass}>
           <View className='qr-box__placeholder'>二维码加载中…</View>
-          <View className='qr-row__side'>{aside}</View>
+          {aside && <View className='qr-row__side'>{aside}</View>}
         </View>
       </View>
     )
@@ -299,25 +312,25 @@ function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNod
   if (state === 'failed') {
     return (
       <View className='qr-box'>
-        <View className='qr-row'>
+        <View className={rowClass}>
           <View className='qr-box__placeholder'>
             二维码加载失败，请检查网络后重新生成
           </View>
-          <View className='qr-row__side'>{aside}</View>
+          {aside && <View className='qr-row__side'>{aside}</View>}
         </View>
       </View>
     )
   }
   return (
     <View className='qr-box'>
-      <View className='qr-row'>
+      <View className={rowClass}>
         <View className='qr-row__main'>
           <Image className='qr-box__image' src={localPath} mode='aspectFit' onClick={onPreview} />
           <Text className='muted' style={{ marginTop: '16rpx' }}>
             {info.qrModeLabel}
           </Text>
         </View>
-        <View className='qr-row__side'>{aside}</View>
+        {aside && <View className='qr-row__side'>{aside}</View>}
       </View>
 
       <View className='row' style={{ gap: '16rpx', marginTop: '20rpx', width: '100%' }}>
@@ -359,7 +372,7 @@ function VideoGuideTile({ onClick }: { onClick: () => void }) {
 }
 
 /** 推广指导视频播放器 */
-function VideoGuidePlayer({ onClose }: { onClose: () => void }) {
+function VideoGuidePlayer({ url, onClose }: { url: string; onClose: () => void }) {
   const [failed, setFailed] = useState(false)
 
   return (
@@ -367,7 +380,7 @@ function VideoGuidePlayer({ onClose }: { onClose: () => void }) {
       {failed ? (
         <View className='video-player-box__error'>
           <Text className='video-player-box__error-text'>
-            视频加载失败：{PROMO_VIDEO_URL}
+            视频加载失败：{url}
           </Text>
           <Text className='muted' style={{ display: 'block', marginTop: '8rpx', textAlign: 'center' }}>
             请确认视频地址是 https 直链，且域名已加入小程序的 downloadFile 合法域名
@@ -376,7 +389,7 @@ function VideoGuidePlayer({ onClose }: { onClose: () => void }) {
       ) : (
         <Video
           className='video-player'
-          src={PROMO_VIDEO_URL}
+          src={url}
           controls
           autoplay
           objectFit='contain'

@@ -9,12 +9,14 @@ import com.neighborhood.service.entity.Customer;
 import com.neighborhood.service.entity.Order;
 import com.neighborhood.service.entity.Provider;
 import com.neighborhood.service.entity.ReferralCode;
+import com.neighborhood.service.entity.SystemSetting;
 import com.neighborhood.service.enums.EnabledStatus;
 import com.neighborhood.service.enums.OrderStatus;
 import com.neighborhood.service.enums.QrMode;
 import com.neighborhood.service.mapper.CustomerMapper;
 import com.neighborhood.service.mapper.OrderMapper;
 import com.neighborhood.service.mapper.ReferralCodeMapper;
+import com.neighborhood.service.mapper.SystemSettingMapper;
 import com.neighborhood.service.referral.ReferralCodeGenerator;
 import com.neighborhood.service.wechat.QrCodeResult;
 import com.neighborhood.service.wechat.QrStorage;
@@ -56,6 +58,7 @@ public class ReferralCodeService {
     private final ProviderService providerService;
     private final OrderMapper orderMapper;
     private final CustomerMapper customerMapper;
+    private final SystemSettingMapper systemSettingMapper;
 
     // ------------------------------------------------------------------
     // 获取 / 创建
@@ -203,6 +206,7 @@ public class ReferralCodeService {
         Provider provider = providerService.getByProviderId(providerId);
 
         ProviderDto.ReferralInfoVO vo = new ProviderDto.ReferralInfoVO();
+        vo.setPromoVideoUrl(loadPromoVideoUrl());
         if (code == null) {
             vo.setQrMode(wxMaCodeService.currentMode());
             vo.setQrModeLabel(QrMode.DEV.getLabel());
@@ -230,6 +234,31 @@ public class ReferralCodeService {
         vo.setLastVisitAt(code.getLastVisitAt());
         vo.setShareText(buildShareText(code.getReferralCode(), provider));
         return vo;
+    }
+
+    /**
+     * 读「推广指导视频」的地址。
+     *
+     * <p>地址由管理员在「系统基础设置」页配置，保存后小程序刷新即生效。</p>
+     *
+     * <p>这里只读取和清洗，**不抛异常**：视频配错只是播放不出来，
+     * 不该把整个推广页拖垮 —— 推广码才是这页的主功能。</p>
+     *
+     * @return https 直链；未配置或不是 https 时返回 null，小程序据此不显示入口
+     */
+    private String loadPromoVideoUrl() {
+        SystemSetting s = systemSettingMapper.selectOne(Wrappers.<SystemSetting>lambdaQuery()
+                .eq(SystemSetting::getSettingKey, SystemSetting.KEY_PROMO_VIDEO_URL)
+                .last("LIMIT 1"));
+        if (s == null || s.getSettingValue() == null) {
+            return null;
+        }
+        String url = s.getSettingValue().trim();
+        if (url.isEmpty()) {
+            return null;
+        }
+        // 小程序 <Video> 只放行 https，http 会被直接拦掉，这里提前挡掉
+        return url.startsWith("https://") ? url : null;
     }
 
     /** 全部来自真实库表统计，无任何假数据。 */

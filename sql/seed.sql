@@ -59,5 +59,9 @@ VALUES
   ('booking.advance_days',     '7',            '最多可提前预约的天数',        NOW(), NOW(), 0),
   ('booking.min_advance_hours','2',            '最少提前预约小时数',          NOW(), NOW(), 0),
   ('page.default_size',        '20',           '分页默认每页条数',            NOW(), NOW(), 0),
+  -- 推广指导视频：管理员在「系统基础设置」里填 https 直链。
+  -- 留空 = 小程序「我的推广」页不显示「视频推广指导」入口。
+  -- ⚠️ 换成域名后，还必须把该域名加进小程序后台的 downloadFile 合法域名，否则真机黑屏。
+  ('promo.video.url',          '',             '推广指导视频的 https 直链（留空则小程序不显示该入口）', NOW(), NOW(), 0),
   -- 合规占位：以下内容尚未核实，正式上线前必须人工确认后填写，程序不据此做「已合规」判断
   ('compliance.qualification_verified', 'false', '⚠️ 资质与平台类目审核是否已核实（未核实前保持 false）', NOW(), NOW(), 0);

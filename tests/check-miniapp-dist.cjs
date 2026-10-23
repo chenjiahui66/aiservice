@@ -203,8 +203,11 @@ if (referralText !== null) {
   ok(t.includes('video-tile'), '推广页含「视频推广指导」入口（与二维码并排）');
   ok(hasText(t, '视频推广指导'), '推广页含「视频推广指导」文案');
   ok(t.includes('video-player'), '推广页含视频播放器');
-  ok(t.includes('PROMO_VIDEO_URL') || t.includes('promo-guide.mp4') || t.includes('example.com'),
-    '推广页的视频地址已内联进产物');
+  // 地址改成后台可配置：后端随推广信息一起下发，小程序读 promoVideoUrl。
+  // 若这里还能搜到 example.com，说明代码里留了硬编码占位地址，
+  // 管理员在后台配好了也还是播占位地址。
+  ok(t.includes('promoVideoUrl'), '推广页的视频地址来自后端配置（promoVideoUrl）');
+  ok(!t.includes('example.com'), '推广页产物里没有残留的占位视频地址');
 } else {
   ok(false, '找不到推广页产物 pages/referral/index.js');
 }
@@ -281,27 +284,23 @@ if (fs.existsSync(POLICY_SRC) && fs.existsSync(CONSENT_SRC)) {
   ok(false, '找不到 policy.ts 或 ConsentService.java，无法校验协议版本');
 }
 
-// 13. 🔴 推广指导视频的地址：占位符必须换成真实直链
+// 13. 🔴 推广指导视频的地址：必须由后端下发，代码里不能再留硬编码地址
 //
-//     视频地址写在 miniapp/src/constants/promo-video.ts（只改那一处就行）。
-//     现在是占位地址 example.com，真机上会黑屏 —— 但它不阻断构建，
-//     所以这里只提醒；换成真实地址后自动变成 [OK]。
+//     地址已改成管理后台可配置：存在 system_settings 的 promo.video.url 里，
+//     后端随推广信息一起下发，小程序读 info.promoVideoUrl。
+//     代码里残留一个占位地址 = 管理员配好后，用户点开还是播占位地址。
 const VIDEO_SRC = path.resolve(__dirname, '..', 'miniapp', 'src', 'constants', 'promo-video.ts');
 if (fs.existsSync(VIDEO_SRC)) {
   const vt = fs.readFileSync(VIDEO_SRC, 'utf8');
-  const isPlaceholder = /example\.com/i.test(vt);
-  if (isPlaceholder) {
-    note('推广指导视频地址还是占位符（example.com），上线前请替换 miniapp/src/constants/promo-video.ts');
-    note('替换后还要把视频域名加进小程序后台的 downloadFile 合法域名，否则真机黑屏');
-  } else {
-    ok(true, '推广指导视频地址已替换为真实链接');
-    const m = vt.match(/PROMO_VIDEO_URL\s*=\s*'([^']+)'/);
-    if (m && !/^https:\/\//.test(m[1])) {
-      note(`推广指导视频地址不是 https（${m[1]}），真机会被直接拦掉`);
-    }
-  }
+  const hardcoded = vt.match(/https?:\/\/\S+/);
+  ok(!hardcoded,
+    hardcoded
+      ? `promo-video.ts 里残留硬编码地址 ${hardcoded[0]}（应改由后台配置）`
+      : 'promo-video.ts 里没有硬编码的视频地址（由后台配置下发）');
+  note('推广指导视频地址在管理后台「系统基础设置」里配（配置项 promo.video.url）');
+  note('配完还要把视频域名加进小程序后台的 downloadFile 合法域名，否则真机黑屏');
 } else {
-  note('找不到 miniapp/src/constants/promo-video.ts');
+  ok(false, '找不到 miniapp/src/constants/promo-video.ts');
 }
 
 /**

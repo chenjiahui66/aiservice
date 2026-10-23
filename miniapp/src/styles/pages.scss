@@ -104,6 +104,12 @@
   flex-shrink: 0;
 }
 
+/* 没有右侧插槽时（后台还没配推广指导视频），二维码回到卡片正中，
+   别让它孤零零贴着左边、右边留一截空白。 */
+.qr-row--solo {
+  justify-content: center;
+}
+
 /* 右边：视频推广指导入口 */
 .qr-row__side {
   flex: 1;

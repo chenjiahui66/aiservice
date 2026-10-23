@@ -133,6 +133,7 @@ fill() {
 }
 
 fill "MYSQL_ROOT_PASSWORD" "${DB_ROOT_PASSWORD:-$(gen_db_password)}"
+fill "DB_NAME" "neighborhood"
 fill "DB_USERNAME" "app_user"
 fill "DB_PASSWORD" "${DB_PASSWORD:-$(gen_db_password)}"
 fill "JWT_PROVIDER_SECRET" "${JWT_PROVIDER_SECRET:-$(gen_secret)}"

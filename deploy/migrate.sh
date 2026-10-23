@@ -32,9 +32,26 @@ if [ ! -d "$MIGRATIONS_DIR" ]; then
   exit 0
 fi
 
-DB_USERNAME=$(grep -E '^DB_USERNAME=' "$ENV_FILE" | cut -d= -f2)
-DB_PASSWORD=$(grep -E '^DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2)
-DB_NAME=$(grep -E '^DB_NAME=' "$ENV_FILE" | cut -d= -f2)
+# ⚠️ 这三行必须容错，否则 .env 缺任何一个键都会让脚本**静默死掉**。
+#
+#    坑：原来写的是
+#        DB_NAME=$(grep -E '^DB_NAME=' "$ENV_FILE" | cut -d= -f2)
+#    .env 里没有 DB_NAME 这一行时，grep 返回 1 →
+#    脚本第 17 行的 `set -Eeuo pipefail` 里 pipefail 把这个 1 冒泡成整条管道失败 →
+#    set -e 立刻退出 —— **一行输出都没有，退出码 1**。
+#    更坑的是紧跟着的 `DB_NAME=${DB_NAME:-neighborhood}` 兜底根本走不到，
+#    因为脚本已经死在上一行的赋值里了。现场只能靠 bash -x 才看得出断在哪。
+#
+#    现在用 read_env 统一兜住，缺键交给下面的显式检查报错（能看懂、能修）。
+read_env() {
+  # tail -1 取最后一次赋值（后写的覆盖先写的）
+  # cut -d= -f2- 而不是 -f2：值里含 '=' 时（base64 补位）不会被截断
+  grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true
+}
+
+DB_USERNAME=$(read_env DB_USERNAME)
+DB_PASSWORD=$(read_env DB_PASSWORD)
+DB_NAME=$(read_env DB_NAME)
 DB_NAME=${DB_NAME:-neighborhood}
 
 [ -n "$DB_USERNAME" ] || fail "deploy/.env 里没有 DB_USERNAME"
@@ -68,8 +85,12 @@ fi
 
 for f in "${files[@]}"; do
   version=$(basename "$f" .sql)
+  # ⚠️ 同样要兜住：查记录失败时 set -e 会让脚本静默退出。
+  #    这里宁可把 applied 当成「没执行过」（下面的 run_sql 会给出**可见**报错），
+  #    也好过在 30 行之前悄无声息地死掉、只留一个退出码 1。
   applied=$(run_sql --batch --skip-column-names \
-    -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '${version}';" | tr -d '[:space:]')
+    -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '${version}';" \
+    | tr -d '[:space:]' || true)
   if [ "$applied" = "1" ]; then
     echo "    跳过 ${version}（已执行）"
     continue

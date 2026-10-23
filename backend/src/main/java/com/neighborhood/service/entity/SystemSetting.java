@@ -20,6 +20,14 @@ import java.time.LocalDateTime;
 @TableName("system_settings")
 public class SystemSetting {
 
+    /**
+     * 设置项键名：推广指导视频的 https 直链。
+     *
+     * <p>留空 = 小程序「我的推广」页不显示「视频推广指导」入口。
+     * 管理员在「系统基础设置」页填写，保存后小程序刷新即生效。</p>
+     */
+    public static final String KEY_PROMO_VIDEO_URL = "promo.video.url";
+
     @TableId(value = "id", type = IdType.AUTO)
     /** 主键 */
     private Long id;

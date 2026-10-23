@@ -464,6 +464,17 @@ public class AdminService {
     }
 
     public SystemSetting saveSetting(String key, String value) {
+        // 推广指导视频地址：只在**保存时**把关，配错了当场报错，
+        // 免得服务者在真机上点开一个黑屏才发现。
+        // 留空是合法的 —— 表示「暂不提供视频推广指导」，小程序不显示该入口。
+        if (SystemSetting.KEY_PROMO_VIDEO_URL.equals(key)) {
+            String v = value == null ? "" : value.trim();
+            if (!v.isEmpty() && !v.startsWith("https://")) {
+                throw BizException.of(ResultCode.PARAM_ERROR,
+                        "推广指导视频地址必须以 https:// 开头，当前值：" + v);
+            }
+            value = v;
+        }
         SystemSetting s = systemSettingMapper.selectOne(Wrappers.<SystemSetting>lambdaQuery()
                 .eq(SystemSetting::getSettingKey, key).last("LIMIT 1"));
         if (s == null) {
