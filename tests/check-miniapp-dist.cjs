@@ -199,8 +199,8 @@ if (referralText !== null) {
   ok(t.includes('feedback-entry'), '推广页底部含意见反馈入口（与服务主页同款样式）');
   ok(hasText(t, '意见反馈'), '推广页底部含「意见反馈」文案');
   ok(t.includes('/pages/feedback/index'), '推广页的意见反馈入口跳转到反馈页');
-  // 视频推广指导入口：排在二维码旁边，点了就地播放
-  ok(t.includes('video-tile'), '推广页含「视频推广指导」入口（与二维码并排）');
+  // 视频推广指导入口：整行，放在「保存到相册」下面，点一下就地播放
+  ok(t.includes('video-entry'), '推广页含「视频推广指导」入口（整行入口）');
   ok(hasText(t, '视频推广指导'), '推广页含「视频推广指导」文案');
   ok(t.includes('video-player'), '推广页含视频播放器');
   // 地址改成后台可配置：后端随推广信息一起下发，小程序读 promoVideoUrl。
@@ -208,6 +208,10 @@ if (referralText !== null) {
   // 管理员在后台配好了也还是播占位地址。
   ok(t.includes('promoVideoUrl'), '推广页的视频地址来自后端配置（promoVideoUrl）');
   ok(!t.includes('example.com'), '推广页产物里没有残留的占位视频地址');
+  // 🔴 没配视频时**入口也要在**。
+  //    曾经做成「配了才显示」，结果服务者反馈「后台配了视频，小程序上根本没看到」，
+  //    分不清是功能坏了还是没配。现在置灰显示并说明原因。
+  ok(hasText(t, '暂未配置视频'), '没配视频时入口仍显示并说明原因，而不是静默消失');
 } else {
   ok(false, '找不到推广页产物 pages/referral/index.js');
 }

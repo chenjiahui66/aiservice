@@ -67,7 +67,7 @@ const df = path.join(ROOT, 'backend/Dockerfile.prebuilt');
 if (fs.existsSync(df)) {
   const t = fs.readFileSync(df, 'utf8');
   ok(/-Dfile\.encoding=UTF-8/.test(t), 'Dockerfile.prebuilt 指定 -Dfile.encoding=UTF-8');
-  ok(!MOJIBAKE.test(t), 'Dockerfile.prebuilt 注释无双���编码');
+  ok(!MOJIBAKE.test(t), 'Dockerfile.prebuilt 注释无双重编码');
   ok(!/\?\?/.test(t), 'Dockerfile.prebuilt 注释无损坏字符');
 } else {
   ok(false, 'backend/Dockerfile.prebuilt 不存在');

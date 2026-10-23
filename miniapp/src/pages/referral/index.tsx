@@ -118,6 +118,15 @@ function ReferralPanel({
    */
   const promoVideoUrl = (info.promoVideoUrl ?? '').trim()
 
+  const onOpenVideo = () => {
+    if (!promoVideoUrl) {
+      // 不是 bug，是后台还没配。给句人话，别让人以为功能坏了。
+      Taro.showToast({ title: '推广指导视频暂未配置', icon: 'none' })
+      return
+    }
+    setShowVideo(true)
+  }
+
   const doGenerate = async () => {
     if (generating) return
     setGenerating(true)
@@ -190,12 +199,26 @@ function ReferralPanel({
         {showVideo ? (
           <VideoGuidePlayer url={promoVideoUrl} onClose={() => setShowVideo(false)} />
         ) : (
-          <QrImage
-            info={info}
-            aside={
-              promoVideoUrl ? <VideoGuideTile onClick={() => setShowVideo(true)} /> : undefined
-            }
-          />
+          <QrImage info={info} />
+        )}
+
+        {/* 视频推广指导：整行入口，放在「保存到相册」正下方。
+            早先做成二维码右侧的小方块，实测太不显眼 —— 服务者根本找不到，
+            反馈是「配了但没看到」。整行入口一眼就能看见。 */}
+        {!showVideo && (
+          <View
+            className={`video-entry ${promoVideoUrl ? '' : 'video-entry--off'}`}
+            onClick={onOpenVideo}
+          >
+            <View className='video-entry__badge'>▶</View>
+            <View className='video-entry__main'>
+              <Text className='video-entry__title'>{PROMO_VIDEO_TITLE}</Text>
+              <Text className='video-entry__desc'>
+                {promoVideoUrl ? PROMO_VIDEO_DESC : '暂未配置视频，可联系平台'}
+              </Text>
+            </View>
+            <Text className='video-entry__arrow'>›</Text>
+          </View>
         )}
 
         <View style={{ marginTop: '24rpx' }}>
@@ -232,20 +255,11 @@ function ReferralPanel({
  * 二维码图片。
  * 后端该接口需要登录态，`<Image src>` 无法带 Authorization，
  * 因此用 downloadFile 带 token 拉到临时文件后再展示。
- *
- * `aside`：二维码右侧的插槽（当前放「视频推广指导」入口）。
  */
-function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNode }) {
+function QrImage({ info }: { info: ReferralInfoVO }) {
   const [localPath, setLocalPath] = useState('')
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'failed'>('idle')
   const [saving, setSaving] = useState(false)
-
-  /**
-   * 没有右侧插槽时（= 后台还没配推广指导视频），二维码回到卡片正中。
-   *
-   * 视频入口在时是「左码 + 右入口」并排；不在时不该留一截空白把码挤到左边。
-   */
-  const rowClass = aside ? 'qr-row' : 'qr-row qr-row--solo'
 
   useEffect(() => {
     if (!info.qrImageUrl) {
@@ -292,46 +306,32 @@ function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNod
   if (state === 'idle') {
     return (
       <View className='qr-box'>
-        <View className={rowClass}>
-          <View className='qr-box__placeholder'>还没有生成二维码，点下方按钮生成</View>
-          {aside && <View className='qr-row__side'>{aside}</View>}
-        </View>
+        <View className='qr-box__placeholder'>还没有生成二维码，点下方按钮生成</View>
       </View>
     )
   }
   if (state === 'loading') {
     return (
       <View className='qr-box'>
-        <View className={rowClass}>
-          <View className='qr-box__placeholder'>二维码加载中…</View>
-          {aside && <View className='qr-row__side'>{aside}</View>}
-        </View>
+        <View className='qr-box__placeholder'>二维码加载中…</View>
       </View>
     )
   }
   if (state === 'failed') {
     return (
       <View className='qr-box'>
-        <View className={rowClass}>
-          <View className='qr-box__placeholder'>
-            二维码加载失败，请检查网络后重新生成
-          </View>
-          {aside && <View className='qr-row__side'>{aside}</View>}
+        <View className='qr-box__placeholder'>
+          二维码加载失败，请检查网络后重新生成
         </View>
       </View>
     )
   }
   return (
     <View className='qr-box'>
-      <View className={rowClass}>
-        <View className='qr-row__main'>
-          <Image className='qr-box__image' src={localPath} mode='aspectFit' onClick={onPreview} />
-          <Text className='muted' style={{ marginTop: '16rpx' }}>
-            {info.qrModeLabel}
-          </Text>
-        </View>
-        {aside && <View className='qr-row__side'>{aside}</View>}
-      </View>
+      <Image className='qr-box__image' src={localPath} mode='aspectFit' onClick={onPreview} />
+      <Text className='muted' style={{ marginTop: '16rpx' }}>
+        {info.qrModeLabel}
+      </Text>
 
       <View className='row' style={{ gap: '16rpx', marginTop: '20rpx', width: '100%' }}>
         <Button
@@ -357,21 +357,10 @@ function QrImage({ info, aside }: { info: ReferralInfoVO; aside?: React.ReactNod
 }
 
 /**
- * 视频推广指导入口（排在二维码旁边）。
- * 用途：把「怎么用这个小程序、怎么用这个码去推广」拍成一段视频，
- * 服务者可以先看懂了再教给客户。
+ * 推广指导视频播放器。
+ *
+ * 播放器整块替换二维码区域，点下面的「返回推广码」退出。
  */
-function VideoGuideTile({ onClick }: { onClick: () => void }) {
-  return (
-    <View className='video-tile' onClick={onClick}>
-      <View className='video-tile__icon'>▶</View>
-      <Text className='video-tile__title'>{PROMO_VIDEO_TITLE}</Text>
-      <Text className='video-tile__desc'>{PROMO_VIDEO_DESC}</Text>
-    </View>
-  )
-}
-
-/** 推广指导视频播放器 */
 function VideoGuidePlayer({ url, onClose }: { url: string; onClose: () => void }) {
   const [failed, setFailed] = useState(false)
 

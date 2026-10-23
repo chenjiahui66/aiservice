@@ -88,77 +88,77 @@
   line-height: 1.5;
 }
 
-/* ---------------- 二维码 + 视频推广指导（并排） ---------------- */
-.qr-row {
+/* ---------------- 视频推广指导：整行入口 ----------------
+ *
+ * 早先做成二维码右侧 211rpx 宽的小方块，实测**太不显眼**：
+ * 服务者反馈「后台配了视频，小程序上根本没看到」。
+ * 并排布局还把二维码挤到了卡片左侧，视觉上也不干净。
+ * 现在改成整行入口，放在「保存到相册」正下方，一眼能找到。
+ * 视觉与「意见反馈入口」保持同一套。
+ */
+.video-entry {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  width: 100%;
+  gap: 18rpx;
+  margin-top: 20rpx;
+  padding: 26rpx 28rpx;
+  background: var(--brand-weak);
+  border: 1rpx solid var(--brand-weak);
+  border-radius: var(--radius-lg);
 }
 
-/* 左边：二维码本体 */
-.qr-row__main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-/* 没有右侧插槽时（后台还没配推广指导视频），二维码回到卡片正中，
-   别让它孤零零贴着左边、右边留一截空白。 */
-.qr-row--solo {
-  justify-content: center;
-}
-
-/* 右边：视频推广指导入口 */
-.qr-row__side {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-}
-
-.video-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  width: 100%;
-  padding: 24rpx 12rpx;
-  background: var(--grey-weak);
-  border: 1rpx dashed var(--line-strong);
-  border-radius: var(--radius-md);
-}
-
-.video-tile:active {
+.video-entry:active {
   opacity: 0.75;
 }
 
-.video-tile__icon {
-  width: 72rpx;
-  height: 72rpx;
+/* 后台还没配视频：入口仍然显示，但明确告诉用户是「没配」而不是「坏了」 */
+.video-entry--off {
+  background: var(--grey-weak);
+  border-color: var(--line);
+}
+
+.video-entry__badge {
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 50%;
   background: var(--brand);
   color: var(--text-inverse);
-  font-size: 28rpx;
+  font-size: 26rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.video-tile__title {
-  font-size: 25rpx;
-  color: var(--text-1);
-  text-align: center;
-  line-height: 1.35;
+.video-entry--off .video-entry__badge {
+  background: var(--text-3);
 }
 
-.video-tile__desc {
-  font-size: 21rpx;
-  color: var(--text-3);
-  text-align: center;
+.video-entry__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.video-entry__title {
+  display: block;
+  font-size: 28rpx;
+  color: var(--text-1);
   line-height: 1.4;
+}
+
+.video-entry__desc {
+  display: block;
+  font-size: 23rpx;
+  color: var(--text-3);
+  margin-top: 4rpx;
+  line-height: 1.4;
+}
+
+.video-entry__arrow {
+  flex-shrink: 0;
+  font-size: 32rpx;
+  color: var(--text-3);
+  line-height: 1;
 }
 
 /* ---------------- 推广指导视频播放器 ---------------- */
