@@ -31,16 +31,17 @@ public class AuthController {
     private final AdminAuthService adminAuthService;
 
     @Operation(summary = "服务者注册",
-            description = "注册后账号为「待审核」状态，需平台管理员审核通过后才能对外展示主页并接收预约。"
+            description = "注册即通过，无需人工审核，注册完就能登录、就能对外接单。"
+                    + "出问题的服务者由平台在后台停用处理。"
                     + "必须先明示同意《用户服务协议》和《隐私政策」，同意记录会落库留证。")
     @PostMapping("/provider/register")
     public Result<AuthDto.LoginResponse> register(@Valid @RequestBody AuthDto.RegisterRequest request,
                                                   HttpServletRequest servletRequest) {
-        return Result.ok("注册成功，请等待平台审核",
+        return Result.ok("注册成功",
                 providerAuthService.register(request, ConsentContext.from(servletRequest)));
     }
 
-    @Operation(summary = "服务者登录", description = "返回 token 与审核状态，前端据此跳转对应页面。"
+    @Operation(summary = "服务者登录", description = "返回 token 与账号状态，前端据此跳转对应页面。"
             + "登录同样需要明示同意《用户服务协议》和《隐私政策》。")
     @PostMapping("/provider/login")
     public Result<AuthDto.LoginResponse> providerLogin(@Valid @RequestBody AuthDto.ProviderLoginRequest request,

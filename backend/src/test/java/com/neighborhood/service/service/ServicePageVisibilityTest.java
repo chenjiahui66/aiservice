@@ -1,5 +1,6 @@
 package com.neighborhood.service.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.neighborhood.service.common.ConsentContext;
 import com.neighborhood.service.dto.AdminDto;
 import com.neighborhood.service.dto.AuthDto;
@@ -239,7 +240,8 @@ class ServicePageVisibilityTest {
         existing.setAvatarUrl("https://cdn.example.com/a.png");
         when(servicePageMapper.selectOne(any())).thenReturn(existing);
 
-        ServicePageService service = new ServicePageService(servicePageMapper);
+        ServicePageService service = new ServicePageService(
+                servicePageMapper, mock(ProviderMapper.class), mock(UserMapper.class));
 
         ProviderDto.ServicePageVO vo = new ProviderDto.ServicePageVO();
         vo.setDisplayName("张师傅");
@@ -288,7 +290,8 @@ class ServicePageVisibilityTest {
                 mock(OperationLogMapper.class),
                 mock(SystemSettingMapper.class),
                 mock(ReferralCodeService.class),
-                mock(OrderService.class));
+                mock(OrderService.class),
+                new ObjectMapper());
     }
 
     /** 让 SecurityUtils.requireAdminId() 能拿到管理员身份。 */

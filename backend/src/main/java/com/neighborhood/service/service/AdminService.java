@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.neighborhood.service.common.BizException;
 import com.neighborhood.service.common.PageResult;
 import com.neighborhood.service.common.ResultCode;
@@ -65,6 +66,7 @@ public class AdminService {
     private final SystemSettingMapper systemSettingMapper;
     private final ReferralCodeService referralCodeService;
     private final OrderService orderService;
+    private final ObjectMapper objectMapper;
 
     // ==================================================================
     // 概览：全部来自真实 count 查询
@@ -325,34 +327,98 @@ public class AdminService {
         return vo;
     }
 
+    /**
+     * 新增 / 更新服务项目模板。
+     *
+     * <p>⚠️ form_fields / booking_rules 是 MySQL 的 <b>JSON 列</b>，收到空字符串会直接报
+     * {@code ERROR 3140 Invalid JSON text: "The document is empty."}，
+     * 而管理后台的表单每次都会带上这两个字段（值可能是空串）。
+     * 所以这里统一做归一化：空串 → null（写 NULL），非空但不是合法 JSON → 明确报错，
+     * 不让 SQL 层的 500 抛给前端。</p>
+     */
     public AdminDto.ServiceItemVO saveServiceItem(Long id, AdminDto.ServiceItemSaveRequest req) {
-        ServiceItem item = id == null ? new ServiceItem() : serviceItemMapper.selectById(id);
+        if (id == null) {
+            if (req == null || req.getName() == null || req.getName().isBlank()) {
+                throw BizException.of(ResultCode.PARAM_ERROR, "请填写服务名称");
+            }
+            ServiceItem item = new ServiceItem();
+            item.setProviderId(0L);
+            applyRequest(item, req);
+            serviceItemMapper.insert(item);
+            return toItemVO(serviceItemMapper.selectById(item.getId()));
+        }
+
+        ServiceItem item = serviceItemMapper.selectById(id);
         if (item == null) {
             throw BizException.of(ResultCode.SERVICE_ITEM_NOT_FOUND);
         }
-        if (id == null) {
-            item.setProviderId(0L);
+        applyRequest(item, req);
+        serviceItemMapper.updateById(item);
+        return toItemVO(serviceItemMapper.selectById(id));
+    }
+
+    /**
+     * 把请求里的非空字段落到实体上。
+     *
+     * <p>刻意只写「客户端明确传了的」字段：主页模板页只提交 JSON 两项，
+     * 如果无脑覆盖会把名称、描述这些全刷成 null。</p>
+     */
+    private void applyRequest(ServiceItem item, AdminDto.ServiceItemSaveRequest req) {
+        if (req == null) {
+            return;
         }
-        item.setName(req.getName());
-        item.setDescription(req.getDescription());
-        item.setIconUrl(req.getIconUrl());
-        item.setUnitDesc(req.getUnitDesc());
-        item.setPriceDesc(req.getPriceDesc());
-        item.setFormFields(req.getFormFields());
-        item.setBookingRules(req.getBookingRules());
-        item.setNotes(req.getNotes());
+        if (req.getName() != null) {
+            item.setName(req.getName().trim());
+        }
+        if (req.getDescription() != null) {
+            item.setDescription(req.getDescription());
+        }
+        if (req.getIconUrl() != null) {
+            item.setIconUrl(req.getIconUrl());
+        }
+        if (req.getUnitDesc() != null) {
+            item.setUnitDesc(req.getUnitDesc());
+        }
+        if (req.getPriceDesc() != null) {
+            item.setPriceDesc(req.getPriceDesc());
+        }
+        if (req.getFormFields() != null) {
+            item.setFormFields(normalizeJson(req.getFormFields(), "表单字段模板"));
+        }
+        if (req.getBookingRules() != null) {
+            item.setBookingRules(normalizeJson(req.getBookingRules(), "预约规则模板"));
+        }
+        if (req.getNotes() != null) {
+            item.setNotes(req.getNotes());
+        }
         if (req.getSortOrder() != null) {
             item.setSortOrder(req.getSortOrder());
         }
         if (req.getEnabled() != null) {
             item.setEnabled(req.getEnabled() ? EnabledStatus.ENABLED : EnabledStatus.DISABLED);
         }
-        if (id == null) {
-            serviceItemMapper.insert(item);
-        } else {
-            serviceItemMapper.updateById(item);
+    }
+
+    /**
+     * JSON 列归一化：空串 → null；非法 JSON → 业务异常。
+     *
+     * <p>MySQL 的 JSON 列不接受空串，也不能接受半截 JSON，
+     * 与其让驱动抛 500，不如在这里说清楚是哪一项写错了。</p>
+     */
+    private String normalizeJson(String raw, String label) {
+        if (raw == null) {
+            return null;
         }
-        return toItemVO(serviceItemMapper.selectById(item.getId()));
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            objectMapper.readTree(trimmed);
+        } catch (Exception e) {
+            throw BizException.of(ResultCode.PARAM_ERROR, label + "不是合法的 JSON");
+        }
+        return trimmed;
     }
 
     // ==================================================================

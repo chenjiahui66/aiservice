@@ -32,8 +32,14 @@ import java.time.LocalDateTime;
 /**
  * 服务者注册 / 登录 / 资料维护。
  *
- * <p>注册后账号处于「待审核」，默认不能公开展示主页、不能接收预约——
- * 审核通过才由平台侧开启，不存在「新注册即可接单」的旁路。</p>
+ * <p>注册即通过：不再有人工审核环节，服务者注册完就能登录、就能对外接单。
+ * 出问题的服务者由平台在后台「停用」处理（{@code providers.enabled=DISABLED}
+ * 会同时禁用登录账号、让推广码立即失效），后台另有「服务者状态管理」可随时启停。</p>
+ *
+ * <p>注册 / 登录时都会把账号手机号作为「对外联系电话」的默认值写进服务主页 ——
+ * 服务者几乎不会主动去「编辑主页」里填电话，而客户看不到电话就打不了电话，
+ * 所以这一步由后端兜底。服务者之后想换成别的号码，在「编辑主页」里改即可，
+ * 后端不会覆盖他已经改过的号码。</p>
  */
 @Slf4j
 @Service
@@ -74,7 +80,10 @@ public class ProviderAuthService {
         Provider provider = new Provider();
         provider.setRealName(req.getRealName());
         provider.setServiceArea(req.getServiceArea());
-        provider.setAuditStatus(AuditStatus.PENDING);
+        // 注册即通过：不再走人工审核，服务者注册完直接能登录用。
+        // 需要处置时由平台在后台「停用」，不必在注册链路上卡人。
+        provider.setAuditStatus(AuditStatus.APPROVED);
+        provider.setAuditedAt(LocalDateTime.now());
         provider.setEnabled(EnabledStatus.ENABLED);
 
         try {
@@ -89,14 +98,15 @@ public class ProviderAuthService {
         // ⚠️ 主页默认「开启」而不是关闭：注册的同时就分配了推广码（见下方 seedReferralCode），
         // 如果主页默认关闭，服务者拿到的二维码必然让客户撞上 41008「该服务主页已关闭」，
         // 而「开启主页」开关藏在「编辑主页」里，服务者通常根本不知道要去点开 —— 死结。
-        // 对外真正的准入门禁是平台审核：未通过审核时 PublicHomeService 会先拦在 41005，
-        // 根本走不到主页开关这一层，所以这里默认开启不会让未审核的服务者对外曝光。
         ServicePage page = new ServicePage();
         page.setProviderId(provider.getId());
         page.setDisplayName(req.getRealName());
         page.setServiceArea(req.getServiceArea());
         page.setContactVisible(EnabledStatus.ENABLED);
         page.setEnabled(EnabledStatus.ENABLED);
+        // 对外联系电话直接用注册手机号：服务者一般不会主动去填，
+        // 不自动带上，客户在主页上就打不了电话。
+        page.setContactPhone(req.getPhone());
         servicePageMapper.insert(page);
 
         // 注册即分配推广码，保证「注册后立刻能拿到自己的码」
@@ -138,6 +148,45 @@ public class ProviderAuthService {
         }
     }
 
+    /**
+     * 把账号手机号作为「对外联系电话」的默认值写进服务主页。
+     *
+     * <p>规则：主页没有电话才写，已经有号码就不动（不覆盖服务者自己改过的号码）。
+     * 主页整条记录都没有时，补一条默认开启的。</p>
+     *
+     * <p>调用方负责兜住异常：本方法属于「锦上添花」，不该把登录/注册主流程带崩。</p>
+     */
+    private void bindContactPhone(Provider provider, String phone) {
+        if (phone == null || phone.isBlank()) {
+            return;
+        }
+        try {
+            ServicePage page = servicePageMapper.selectOne(Wrappers.<ServicePage>lambdaQuery()
+                    .eq(ServicePage::getProviderId, provider.getId())
+                    .last("LIMIT 1"));
+            if (page == null) {
+                ServicePage created = new ServicePage();
+                created.setProviderId(provider.getId());
+                created.setDisplayName(provider.getRealName());
+                created.setServiceArea(provider.getServiceArea());
+                created.setContactVisible(EnabledStatus.ENABLED);
+                created.setEnabled(EnabledStatus.ENABLED);
+                created.setContactPhone(phone);
+                servicePageMapper.insert(created);
+                return;
+            }
+            if (page.getContactPhone() == null || page.getContactPhone().isBlank()) {
+                ServicePage update = new ServicePage();
+                update.setId(page.getId());
+                update.setContactPhone(phone);
+                servicePageMapper.updateById(update);
+                log.info("服务者 {} 的主页电话已绑定账号手机号", provider.getId());
+            }
+        } catch (Exception e) {
+            log.warn("服务者 {} 的主页电话绑定失败（不影响登录）: {}", provider.getId(), e.getMessage());
+        }
+    }
+
     // ------------------------------------------------------------------
     // 登录
     // ------------------------------------------------------------------
@@ -166,6 +215,11 @@ public class ProviderAuthService {
         if (provider.getEnabled() != EnabledStatus.ENABLED) {
             throw BizException.of(ResultCode.PROVIDER_DISABLED);
         }
+
+        // 历史数据补齐：本次改造之前注册的服务者，主页里没有对外电话。
+        // 登录时顺手把账号手机号绑上，省得再让服务者自己去「编辑主页」里填一遍。
+        // 补电话失败绝不阻断登录 —— 登录是主流程，这里只是兜底。
+        bindContactPhone(provider, user.getPhone());
 
         User update = new User();
         update.setId(user.getId());

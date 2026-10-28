@@ -44,7 +44,7 @@ export default function ProfilePage() {
             <View className={bannerClass}>
               <Text className='audit-banner__badge'>{data.auditStatusLabel}</Text>
               <View className='grow'>
-                {data.auditStatus === 'APPROVED' && <Text>审核已通过，可以正常接收客户预约。</Text>}
+                {data.auditStatus === 'APPROVED' && <Text>账号正常，可以直接接收客户预约。</Text>}
                 {data.auditStatus === 'PENDING' && (
                   <Text>资料正在审核中，通过后客户才能扫码看到你的服务主页。</Text>
                 )}

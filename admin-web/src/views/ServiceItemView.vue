@@ -17,14 +17,31 @@ const dialog = reactive({
 })
 
 const formRef = ref<FormInstance>()
-const form = reactive<Required<ServiceItemSaveRequest>>({
+
+/**
+ * 服务项目表单。
+ *
+ * ⚠️ formFields / bookingRules 是库表里的 **JSON 列**，提交空串会让后端直接报
+ * 「Invalid JSON text: The document is empty.」。这两个字段归「服务主页模板配置」页维护，
+ * 这里既不展示也不提交，省得再踩 JSON 列的坑。
+ */
+type ServiceItemForm = {
+  name: string
+  description: string
+  iconUrl: string
+  unitDesc: string
+  priceDesc: string
+  notes: string
+  sortOrder: number
+  enabled: boolean
+}
+
+const form = reactive<ServiceItemForm>({
   name: '',
   description: '',
   iconUrl: '',
   unitDesc: '',
   priceDesc: '',
-  formFields: '',
-  bookingRules: '',
   notes: '',
   sortOrder: 0,
   enabled: true
@@ -61,8 +78,6 @@ function openCreate(): void {
     iconUrl: '',
     unitDesc: '',
     priceDesc: '',
-    formFields: '',
-    bookingRules: '',
     notes: '',
     sortOrder: 0,
     enabled: true
@@ -78,8 +93,6 @@ function openEdit(row: ServiceItemVO): void {
     iconUrl: row.iconUrl ?? '',
     unitDesc: row.unitDesc ?? '',
     priceDesc: row.priceDesc ?? '',
-    formFields: row.formFields ?? '',
-    bookingRules: row.bookingRules ?? '',
     notes: row.notes ?? '',
     sortOrder: row.sortOrder ?? 0,
     enabled: row.enabled !== 'DISABLED'
@@ -91,13 +104,26 @@ async function onSubmit(): Promise<void> {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
+  // 只提交本表单拥有的字段：JSON 列（formFields / bookingRules）不碰，
+  // 交由「服务主页模板配置」页维护，避免把 JSON 字段提交成空串。
+  const payload: ServiceItemSaveRequest = {
+    name: form.name.trim(),
+    description: form.description,
+    iconUrl: form.iconUrl,
+    unitDesc: form.unitDesc,
+    priceDesc: form.priceDesc,
+    notes: form.notes,
+    sortOrder: form.sortOrder,
+    enabled: form.enabled
+  }
+
   dialog.submitting = true
   try {
     if (dialog.editingId === null) {
-      await createServiceItem({ ...form })
+      await createServiceItem(payload)
       ElMessage.success('服务项目已创建')
     } else {
-      await updateServiceItem(dialog.editingId, { ...form })
+      await updateServiceItem(dialog.editingId, payload)
       ElMessage.success('服务项目已更新')
     }
     dialog.visible = false

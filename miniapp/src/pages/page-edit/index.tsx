@@ -182,15 +182,22 @@ export default function PageEditPage() {
 
             {form.contactVisible && (
               <Item label='联系电话'>
-                <Input
-                  className='form-item__control'
-                  type='number'
-                  value={form.contactPhone}
-                  maxlength={11}
-                  placeholder='客户可直接拨打'
-                  placeholderClass='form-item__placeholder'
-                  onInput={(e) => set('contactPhone', e.detail.value)}
-                />
+                <>
+                  {/* 默认值由后端带下来：注册 / 登录时已经把账号手机号写进主页了，
+                      服务者不用自己敲一遍；想换成别的号码照样可以改。 */}
+                  <Input
+                    className='form-item__control'
+                    type='number'
+                    value={form.contactPhone}
+                    maxlength={11}
+                    placeholder='客户可直接拨打'
+                    placeholderClass='form-item__placeholder'
+                    onInput={(e) => set('contactPhone', e.detail.value)}
+                  />
+                  <Text className='muted' style={{ display: 'block', marginTop: '10rpx', fontSize: '23rpx' }}>
+                    默认已填入你的注册手机号，也可以改成其它号码。
+                  </Text>
+                </>
               </Item>
             )}
 

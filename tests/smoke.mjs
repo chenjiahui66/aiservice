@@ -82,18 +82,21 @@ const today = nextBookableDate();
     { body: { phone: phoneA, password: 'test123456', realName: '张师傅', serviceArea: '阳光小区', ...consent } });
   ok('服务者 A 注册成功', regA.json?.code === 0, JSON.stringify(regA.json));
   const providerA = regA.json?.data;
-  ok('新注册默认「待审核」', providerA?.auditStatus === 'PENDING', `实际=${providerA?.auditStatus}`);
+  ok('新注册直接「已通过」（已取消人工审核）', providerA?.auditStatus === 'APPROVED', `实际=${providerA?.auditStatus}`);
 
   const regB = await api('POST', '/api/auth/provider/register',
     { body: { phone: phoneB, password: 'test123456', realName: '李阿姨', serviceArea: '幸福家园', ...consent } });
   ok('服务者 B 注册成功', regB.json?.code === 0);
   const providerB = regB.json?.data;
 
-  section('3. 未审核的服务者主页不可访问');
+  section('3. 主页默认带上注册手机号（客户能直接打电话）');
+  const pageA0 = await api('GET', '/api/provider/page', { token: providerA.token });
+  ok('主页联系电话 = 注册手机号', pageA0.json?.data?.contactPhone === phoneA,
+    `实际=${pageA0.json?.data?.contactPhone} 期望=${phoneA}`);
   const homeBefore = await api('GET', `/api/public/provider/home?referralCode=NOTEXIST00000000`);
   ok('不存在的推广码返回 41001', homeBefore.json?.code === 41001, `实际=${homeBefore.json?.code}`);
 
-  section('4. 管理员审核通过');
+  section('4. 管理员仍可手动调整审核状态（出问题时再处理）');
   const auditA = await api('POST', `/api/admin/providers/${providerA.providerId}/audit`,
     { body: { approved: true, remark: '资料核验通过' }, token: adminToken });
   ok('审核 A 通过', auditA.json?.code === 0, JSON.stringify(auditA.json));

@@ -63,7 +63,7 @@ export default function RegisterPage() {
         auditStatus: res.auditStatus,
         auditRemark: res.auditRemark
       })
-      Taro.showToast({ title: '注册成功，请等待审核', icon: 'none', duration: 2000 })
+      Taro.showToast({ title: '注册成功', icon: 'success', duration: 1500 })
       setTimeout(() => {
         Taro.redirectTo({ url: '/pages/profile/index' })
       }, 1200)
