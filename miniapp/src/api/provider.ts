@@ -5,6 +5,7 @@ import type {
   CustomerDetailVO,
   CustomerVO,
   ManualOrderRequest,
+  MyServiceItem,
   OrderVO,
   ProviderPageConfig,
   QrGenerateResult,
@@ -23,6 +24,39 @@ export function updateMyPage(data: Partial<ProviderPageConfig> & Record<string, 
     url: '/api/provider/page',
     method: 'PUT',
     data,
+    silent: true
+  })
+}
+
+// ---------------------------------------------------------------- 我的服务类目
+
+/**
+ * 我能提供的服务类目 = 平台后台维护的那批 + 我勾选了哪几项。
+ * 服务者不能自建类目，只能在这批里挑。
+ */
+export function fetchMyServiceItems() {
+  return request<MyServiceItem[]>({
+    url: '/api/provider/service-items/manage',
+    silent: true
+  })
+}
+
+/** 开始提供某个类目 */
+export function selectServiceItem(templateId: number) {
+  return request<void>({
+    url: `/api/provider/service-items/manage/${templateId}`,
+    method: 'PUT',
+    data: {},
+    silent: true
+  })
+}
+
+/** 不再提供某个类目（之后可以随时加回来） */
+export function unselectServiceItem(templateId: number) {
+  return request<void>({
+    url: `/api/provider/service-items/manage/${templateId}`,
+    method: 'DELETE',
+    data: {},
     silent: true
   })
 }

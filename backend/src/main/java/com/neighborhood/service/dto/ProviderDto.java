@@ -70,6 +70,31 @@ public final class ProviderDto {
         private Boolean enabled;
     }
 
+    /**
+     * 「我的服务类目」管理列表的一行。
+     *
+     * <p>服务者能选的类目<b>只有平台后台维护的那批</b>，本 VO 给出的就是这批，
+     * 外加「我是否在提供」的勾选状态。</p>
+     */
+    @Data
+    public static class MyServiceItemVO {
+        /** 平台模板 id —— 勾选 / 取消都用它 */
+        private Long templateId;
+        /** 服务者自己派生出的那条记录 id；从未勾选过为 null */
+        private Long myItemId;
+        private String name;
+        private String description;
+        private String iconUrl;
+        private String unitDesc;
+        private String priceDesc;
+        private String notes;
+        private Integer sortOrder;
+        /** 平台是否仍在启用这个类目；停用后不能再勾选 */
+        private Boolean platformEnabled;
+        /** 我当前是否在提供这一项 */
+        private Boolean selected;
+    }
+
     /** 推广中心信息。统计字段全部来自真实业务数据。 */
     @Data
     public static class ReferralInfoVO {

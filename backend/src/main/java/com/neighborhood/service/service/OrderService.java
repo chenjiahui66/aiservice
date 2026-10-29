@@ -12,6 +12,7 @@ import com.neighborhood.service.entity.Customer;
 import com.neighborhood.service.entity.Order;
 import com.neighborhood.service.entity.OrderLog;
 import com.neighborhood.service.entity.ServiceItem;
+import com.neighborhood.service.enums.EnabledStatus;
 import com.neighborhood.service.enums.OrderAction;
 import com.neighborhood.service.enums.OrderSource;
 import com.neighborhood.service.enums.OrderStatus;
@@ -296,8 +297,13 @@ public class OrderService {
             if (item == null) {
                 throw BizException.of(ResultCode.SERVICE_ITEM_NOT_FOUND);
             }
-            if (item.getProviderId() != 0L && !item.getProviderId().equals(providerId)) {
+            // 只能挂自己勾选在提供的服务项：平台模板 id 与别人的服务项都不认，
+            // 否则服务者能把「没提供」的服务记成自己的单。
+            if (!item.getProviderId().equals(providerId)) {
                 throw BizException.accessDenied();
+            }
+            if (item.getEnabled() != EnabledStatus.ENABLED) {
+                throw BizException.of(ResultCode.SERVICE_ITEM_DISABLED);
             }
             serviceName = item.getName();
         }

@@ -122,7 +122,7 @@ export default function OrderCreatePage() {
         error={error}
         empty={!error && !!items && items.length === 0}
         emptyTitle='暂无可用的服务项目'
-        emptyDesc='请先在服务主页中配置服务项目。'
+        emptyDesc='请先在「我的服务类目」里勾选你提供的服务项。'
         skeleton
         onRetry={reload}
       >

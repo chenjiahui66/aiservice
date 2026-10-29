@@ -142,6 +142,30 @@ export interface ServiceItem {
   notes?: string | null
 }
 
+/**
+ * 「我的服务类目」一行。
+ *
+ * 类目全部由平台后台维护，服务者只负责勾选自己提供哪几项，
+ * 所以这里只有模板信息 + 勾选状态，没有「新建类目」这回事。
+ */
+export interface MyServiceItem {
+  /** 平台模板 id —— 勾选 / 取消都用它 */
+  templateId: number
+  /** 我自己派生出的那条记录 id；从未勾选过为 null */
+  myItemId: number | null
+  name: string
+  description: string | null
+  iconUrl: string | null
+  unitDesc: string | null
+  priceDesc: string | null
+  notes: string | null
+  sortOrder: number | null
+  /** 平台是否仍在启用这个类目；停用后不能再勾选 */
+  platformEnabled: boolean
+  /** 我当前是否在提供这一项 */
+  selected: boolean
+}
+
 export interface ProviderHomeVO {
   referralCode: string
   providerId: number

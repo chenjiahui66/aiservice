@@ -69,6 +69,13 @@ export default function ReferralPage() {
         </View>
         <View
           className='setting-item'
+          onClick={() => Taro.navigateTo({ url: '/pages/service-items/index' })}
+        >
+          <Text>我的服务类目</Text>
+          <Text className='setting-item__value'>选择我提供哪几项 ›</Text>
+        </View>
+        <View
+          className='setting-item'
           onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
         >
           <Text>服务者资料与审核状态</Text>

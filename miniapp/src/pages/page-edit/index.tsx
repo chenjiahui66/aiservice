@@ -224,6 +224,17 @@ export default function PageEditPage() {
           >
             保存
           </Button>
+
+          {/* 主页上「可预约服务」列的就是这里勾的类目 —— 紧挨着保存按钮放，
+              服务者改完主页顺手就能调整自己提供哪几项。 */}
+          <View
+            className='setting-item setting-item--link'
+            onClick={() => Taro.navigateTo({ url: '/pages/service-items/index' })}
+          >
+            <Text>可预约服务</Text>
+            <Text className='setting-item__value'>选择我提供哪几项 ›</Text>
+          </View>
+
           <View className='footer-spacer' />
         </View>
       </PageState>

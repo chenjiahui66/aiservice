@@ -305,6 +305,45 @@
   margin-top: 20rpx;
 }
 
+/* ---------------- 我的服务类目（勾选平台维护的类目） ---------------- */
+.service-item-toggle {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.service-item-toggle:last-child {
+  border-bottom: none;
+}
+
+.service-item-toggle__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding-bottom: 18rpx;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.service-item-toggle__name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.service-item-toggle__meta {
+  margin-top: 10rpx;
+}
+
+/* Switch 原生尺寸偏大，缩一点才不会把文字挤到换行 */
+.service-item-toggle__switch {
+  flex-shrink: 0;
+  transform: scale(0.85);
+  transform-origin: right center;
+}
+
 /* ---------------- 预约成功 ---------------- */
 .result {
   display: flex;
@@ -392,6 +431,15 @@
 
 .setting-item:last-child {
   border-bottom: none;
+}
+
+/* 独立使用的设置行（不在 .setting-group 里，自带卡片外框） */
+.setting-item--link {
+  margin-top: 24rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-lg);
+  border-bottom: 1rpx solid var(--line);
 }
 
 .setting-item__value {

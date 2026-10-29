@@ -11,6 +11,7 @@ export default defineAppConfig({
     'pages/auth/register/index',
     'pages/profile/index',
     'pages/page-edit/index',
+    'pages/service-items/index',
     'pages/order-detail/index',
     'pages/order-create/index',
     'pages/customer-detail/index',

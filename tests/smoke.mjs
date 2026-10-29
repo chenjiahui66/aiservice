@@ -134,6 +134,11 @@ const today = nextBookableDate();
 
   const homeB = await api('GET', `/api/public/provider/home?referralCode=${codeB}`);
   ok('B 的推广码打开的是 B 的主页', homeB.json?.data?.providerId === providerB.providerId);
+  // ⚠️ 每个服务者主页上的服务项 id 是**他自己**的那条记录，不是平台模板。
+  //    所以 B 下单必须用 B 自己主页上的 id；拿 A 的 id 去下 B 的单必须被拒。
+  const itemIdB = homeB.json?.data?.serviceItems?.[0]?.id;
+  ok('A 与 B 的服务项 id 不同（各自一条记录）', itemIdA && itemIdB && itemIdA !== itemIdB,
+    `A=${itemIdA} B=${itemIdB}`);
 
   section('8. 客户提交预约');
   const bookA = await api('POST', '/api/public/bookings', {
@@ -149,13 +154,24 @@ const today = nextBookableDate();
 
   const bookB = await api('POST', '/api/public/bookings', {
     body: {
-      referralCode: codeB, serviceItemId: itemIdA,
+      referralCode: codeB, serviceItemId: itemIdB,
       customerName: '客户乙', customerPhone: '13511110002', community: '幸福家园',
       address: '幸福家园 8 栋 202', bookingDate: today, bookingSlot: '14:00-16:00',
       privacyAccepted: true,
     },
   });
-  ok('客户乙预约成功', bookB.json?.code === 0);
+  ok('客户乙预约成功', bookB.json?.code === 0, JSON.stringify(bookB.json));
+
+  const crossBook = await api('POST', '/api/public/bookings', {
+    body: {
+      referralCode: codeB, serviceItemId: itemIdA,
+      customerName: '越权客户', customerPhone: '13511110004', community: '幸福家园',
+      address: '幸福家园 8 栋 303', bookingDate: today, bookingSlot: '14:00-16:00',
+      privacyAccepted: true,
+    },
+  });
+  ok('不能下别的服务者的服务项(40300)', crossBook.json?.code === 40300,
+    `实际 code=${crossBook.json?.code} msg=${crossBook.json?.message}`);
 
   section('9. 订单归属正确');
   const ordersA = await api('GET', `/api/provider/orders?dateFrom=${today}&dateTo=${today}`, { token: providerA.token });
@@ -252,7 +268,7 @@ const today = nextBookableDate();
   ok('停用后主页不可访问(41007)', homeAfter.json?.code === 41007, `实际 code=${homeAfter.json?.code} msg=${homeAfter.json?.message}`);
   const bookAfter = await api('POST', '/api/public/bookings', {
     body: {
-      referralCode: codeB, serviceItemId: itemIdA, customerName: '客户丙',
+      referralCode: codeB, serviceItemId: itemIdB, customerName: '客户丙',
       customerPhone: '13511110003', address: '幸福家园 1 栋 101',
       bookingDate: today, bookingSlot: '09:00-11:00', privacyAccepted: true,
     },
@@ -312,6 +328,54 @@ const today = nextBookableDate();
     ok('拒绝时给出可读的格式说明',
       /2026-10-25|时间格式/.test(upBad.json?.message || ''),
       `实际=${upBad.json?.message}`);
+  }
+
+  // 🔴 服务者自己勾选服务类目
+  //
+  //    真实诉求：一个人不可能提供十几项服务，主页（以及分享出去的推广码主页）
+  //    只该出现他真正提供的那几项。类目全部由平台后台维护，服务者只能挑、
+  //    不能自建；取消了还能加回来。
+  section('18. 服务者自己勾选服务类目');
+  const manage = await api('GET', '/api/provider/service-items/manage', { token: providerA.token });
+  ok('能拿到平台维护的类目清单', manage.json?.code === 0 && Array.isArray(manage.json?.data),
+    `实际 code=${manage.json?.code}`);
+  const manageList = manage.json?.data ?? [];
+  ok('清单带勾选状态', manageList.length > 0 && typeof manageList[0].selected === 'boolean',
+    `实际=${JSON.stringify(manageList[0])}`);
+  ok('新注册默认全选', manageList.length > 0 && manageList.every((m) => m.selected === true),
+    `实际=${JSON.stringify(manageList.map((m) => m.selected))}`);
+
+  if (manageList.length > 0) {
+    const target = manageList[0];
+    const templateId = target.templateId;
+
+    // 取消一项
+    const off = await api('DELETE', `/api/provider/service-items/manage/${templateId}`, { token: providerA.token });
+    ok('取消一个类目成功', off.json?.code === 0, `实际 code=${off.json?.code} msg=${off.json?.message}`);
+
+    const homeOff = await api('GET', `/api/public/provider/home?referralCode=${codeA}`);
+    const offIds = (homeOff.json?.data?.serviceItems ?? []).map((i) => i.id);
+    ok('主页上这一项消失了', !offIds.includes(target.myItemId),
+      `实际=${JSON.stringify(offIds)}`);
+
+    // 别的服务者不能取消这一项（虽然取消是幂等的，但也不能影响别人）
+    const manageB = await api('GET', '/api/provider/service-items/manage', { token: providerB.token });
+    ok('B 的勾选状态不受 A 影响',
+      (manageB.json?.data ?? []).every((m) => m.selected === true),
+      `实际=${JSON.stringify((manageB.json?.data ?? []).map((m) => m.selected))}`);
+
+    // 加回来
+    const on = await api('PUT', `/api/provider/service-items/manage/${templateId}`, { token: providerA.token });
+    ok('把类目加回来成功', on.json?.code === 0, `实际 code=${on.json?.code}`);
+
+    const homeOn = await api('GET', `/api/public/provider/home?referralCode=${codeA}`);
+    const onIds = (homeOn.json?.data?.serviceItems ?? []).map((i) => i.id);
+    ok('主页上这一项回来了，且是同一条记录（id 不变）', onIds.includes(target.myItemId),
+      `实际=${JSON.stringify(onIds)} 期望包含=${target.myItemId}`);
+
+    // 不能选不是平台维护的类目
+    const bad = await api('PUT', '/api/provider/service-items/manage/999999', { token: providerA.token });
+    ok('不能添加不存在的类目(44001)', bad.json?.code === 44001, `实际 code=${bad.json?.code}`);
   }
 
   console.log(`\n${'='.repeat(52)}`);

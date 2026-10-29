@@ -51,6 +51,7 @@ public class ProviderAuthService {
     private final ServicePageMapper servicePageMapper;
     private final ReferralCodeMapper referralCodeMapper;
     private final ConsentService consentService;
+    private final ServiceItemService serviceItemService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
@@ -111,6 +112,10 @@ public class ProviderAuthService {
 
         // 注册即分配推广码，保证「注册后立刻能拿到自己的码」
         seedReferralCode(provider.getId());
+
+        // 默认勾选平台维护的全部服务类目：注册完就能接单，
+        // 服务者再去「我的服务类目」里把不提供的取消掉。
+        serviceItemService.selectAllTemplates(provider.getId());
 
         // 合规留证：手机号属于个人信息，注册时已明示并取得同意，这里落一条可核查的记录
         consentService.recordProviderAgreement(user.getId(), req.getPolicyVersion(), ctx);
@@ -220,6 +225,15 @@ public class ProviderAuthService {
         // 登录时顺手把账号手机号绑上，省得再让服务者自己去「编辑主页」里填一遍。
         // 补电话失败绝不阻断登录 —— 登录是主流程，这里只是兜底。
         bindContactPhone(provider, user.getPhone());
+
+        // 存量服务者（本次改造之前注册的）还没有自己的类目记录，
+        // 登录时补齐成「默认全选」，主页不会突然一个服务都没有。
+        // 判断依据是「有没有自己的记录」，所以他自己取消过的不会被塞回来。
+        try {
+            serviceItemService.ensureInitialized(provider.getId());
+        } catch (Exception e) {
+            log.warn("服务者 {} 的服务类目初始化失败（不影响登录）: {}", provider.getId(), e.getMessage());
+        }
 
         User update = new User();
         update.setId(user.getId());

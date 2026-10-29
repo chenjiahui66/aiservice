@@ -22,6 +22,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -147,11 +148,38 @@ public class ProviderController {
         return Result.ok(referralCodeService.buildStats(DataScope.currentProviderId()));
     }
 
-    @Operation(summary = "我可提供的服务项目（配置化，非硬编码）")
+    @Operation(summary = "我可提供的服务项目（配置化，非硬编码）",
+            description = "只返回我自己勾选在提供的项目；别人没提供的服务不会出现在我主页上。")
     @GetMapping("/service-items")
     public Result<java.util.List<PublicDto.ServiceItemVO>> serviceItems() {
         return Result.ok(serviceItemService.listOfferedBy(DataScope.currentProviderId())
                 .stream().map(serviceItemService::toVO).toList());
+    }
+
+    // ---------------- 我的服务类目（只能选平台维护的类目） ----------------
+
+    @Operation(summary = "我的服务类目列表",
+            description = "返回平台后台维护的全部服务类目，外加「我是否在提供」的勾选状态。"
+                    + "服务者不能自建类目，只能在这批里挑自己提供哪几项。")
+    @GetMapping("/service-items/manage")
+    public Result<java.util.List<ProviderDto.MyServiceItemVO>> myServiceItems() {
+        return Result.ok(serviceItemService.listManageView(DataScope.currentProviderId()));
+    }
+
+    @Operation(summary = "开始提供某个服务类目",
+            description = "只能添加平台维护的类目。重复添加是幂等的；之前取消过的会恢复同一条记录。")
+    @PutMapping("/service-items/manage/{templateId}")
+    public Result<Object> selectServiceItem(@PathVariable Long templateId) {
+        serviceItemService.select(DataScope.currentProviderId(), templateId);
+        return Result.ok("已添加");
+    }
+
+    @Operation(summary = "不再提供某个服务类目",
+            description = "取消后主页与下单页都不再出现这一项；记录保留，之后可以随时加回来。")
+    @DeleteMapping("/service-items/manage/{templateId}")
+    public Result<Object> unselectServiceItem(@PathVariable Long templateId) {
+        serviceItemService.unselect(DataScope.currentProviderId(), templateId);
+        return Result.ok("已移除");
     }
 
     // ---------------- 今日工作台账 ----------------
