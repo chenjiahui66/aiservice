@@ -63,6 +63,8 @@ public class SecurityConfig {
                                 "/api/auth/admin/login").permitAll()
                         // ---- 客户扫码入口（匿名） ----
                         .requestMatchers("/api/public/**").permitAll()
+                        // ---- 版本自检（匿名，运维用） ----
+                        .requestMatchers("/api/system/**").permitAll()
                         // ---- 分区授权 ----
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/provider/**").hasRole("PROVIDER")

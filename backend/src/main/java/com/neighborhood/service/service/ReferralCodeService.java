@@ -176,7 +176,7 @@ public class ReferralCodeService {
         ReferralCode update = new ReferralCode();
         update.setId(code.getId());
         update.setQrImageKey(result.getImageKey());
-        update.setQrMode(QrMode.REAL.isReal() || "REAL".equals(result.getMode()) ? QrMode.REAL : QrMode.DEV);
+        update.setQrMode("REAL".equals(result.getMode()) ? QrMode.REAL : QrMode.DEV);
         update.setQrScenePage(result.getPage() != null ? result.getPage() : wechatProperties.getScenePage());
         update.setQrGeneratedAt(LocalDateTime.now());
         if (channel != null && !channel.isBlank()) {
@@ -186,6 +186,30 @@ public class ReferralCodeService {
 
         log.info("服务者 {} 生成推广码(mode={})", providerId, result.getMode());
         return result;
+    }
+
+    /**
+     * 确保该服务者有一张可用的二维码图片，没有就自动生成。
+     *
+     * <p>服务者不该被要求自己点「生成二维码」——注册完就该直接能扫码。
+     * 所以：注册时生成一次，之后每次进「我的推广」再兜底检查一次
+     * （图片文件可能因为容器重建而丢失，这时补一张）。</p>
+     *
+     * <p>已存在且图片文件还在 → 直接返回，不重复调微信接口。</p>
+     */
+    @Transactional
+    public ReferralCode ensureQrReady(Long providerId) {
+        ReferralCode code = getOrCreateForProvider(providerId);
+        if (hasUsableQr(code)) {
+            return code;
+        }
+        generateQr(providerId, 430, null);
+        return findByProviderId(providerId);
+    }
+
+    /** 二维码是否可用：记录里有 key，且文件真的在磁盘上。 */
+    private boolean hasUsableQr(ReferralCode code) {
+        return code.getQrImageKey() != null && qrStorage.exists(code.getQrImageKey());
     }
 
     public byte[] readQrImage(String imageKey) {
@@ -203,6 +227,16 @@ public class ReferralCodeService {
 
     public ProviderDto.ReferralInfoVO buildInfo(Long providerId) {
         ReferralCode code = findByProviderId(providerId);
+        // 没有可用二维码就自动生成一张：服务者不该被要求自己点「生成二维码」。
+        // 失败不能拖垮整个推广页 —— 拿不到码时前端仍会提示手动生成。
+        if (code == null || !hasUsableQr(code)) {
+            try {
+                code = ensureQrReady(providerId);
+            } catch (Exception e) {
+                log.warn("服务者 {} 自动生成二维码失败: {}", providerId, e.getMessage());
+                code = findByProviderId(providerId);
+            }
+        }
         Provider provider = providerService.getByProviderId(providerId);
 
         ProviderDto.ReferralInfoVO vo = new ProviderDto.ReferralInfoVO();
@@ -218,7 +252,18 @@ public class ReferralCodeService {
         vo.setReferralCode(code.getReferralCode());
         vo.setStatus(code.getStatus() == null ? null : code.getStatus().name());
         vo.setQrImageKey(code.getQrImageKey());
-        vo.setQrImageUrl(code.getQrImageKey() == null ? null : "/api/provider/referral/qr/" + code.getQrImageKey());
+        // ⚠️ URL 必须带版本参数：二维码文件名是「推广码 + 宽度」这种确定性名字，
+        //    重新生成后图片内容变了但 URL 没变 → 客户端（nginx max-age=300）
+        //    会把旧图缓存住，用户点了「重新生成」看到的还是老图。
+        //    带上生成时间戳，URL 每次都不同，缓存自然失效。
+        if (code.getQrImageKey() == null) {
+            vo.setQrImageUrl(null);
+        } else {
+            long ver = code.getQrGeneratedAt() == null ? 0L
+                    : code.getQrGeneratedAt().atZone(java.time.ZoneId.systemDefault())
+                            .toInstant().toEpochMilli();
+            vo.setQrImageUrl("/api/provider/referral/qr/" + code.getQrImageKey() + "?v=" + ver);
+        }
         QrMode mode = code.getQrMode() == null ? QrMode.DEV : code.getQrMode();
         vo.setQrMode(mode.name());
         vo.setQrModeLabel(mode.getLabel());

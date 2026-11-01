@@ -29,7 +29,7 @@ ok()    { echo -e "${GREEN}[ OK ]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 fail()  { echo -e "${RED}[FAIL]${NC} $*" >&2; exit 1; }
 
-trap 'fail "部署中断，行号 $LINENO"' ERR
+trap 'fail "部署中断：第 $LINENO 行执行失败（命令：${BASH_COMMAND}）"' ERR
 
 # ⚠️ 读 .env 的值必须容错。
 #
@@ -64,6 +64,35 @@ ok "docker: $(docker --version)"
   然后把 jar 上传到这里。
   ⚠️ 不要改成在服务器上编译，会 OOM。"
 
+# ---------------------------------------------------------------------
+# 0.5 上传的包自检（必须在动容器之前做）
+# ---------------------------------------------------------------------
+JAR_HOST="$ROOT/backend/target/neighborhood-backend.jar"
+JAR_DISK=$(md5sum "$JAR_HOST" | cut -d' ' -f1)
+
+# 包里的 jar 必须和包里 BUILD-INFO.txt 记录的指纹一致。
+# 不一致 = tar 包和里面的 jar 不是同一批产物（多半传了旧包，或中途换过 jar）。
+if [ -f "$ROOT/deploy/BUILD-INFO.txt" ]; then
+  EXPECT_MD5=$(grep '^jarMd5=' "$ROOT/deploy/BUILD-INFO.txt" | cut -d= -f2- | tr -d '[:space:]')
+  if [ -n "$EXPECT_MD5" ] && [ "$EXPECT_MD5" != "$JAR_DISK" ]; then
+    fail "上传的包不自洽：jar 的 md5 与 deploy/BUILD-INFO.txt 记录的不一致。
+    jar 实际:    $JAR_DISK
+    包里记录的:  $EXPECT_MD5
+  说明 tar 包和里面的 jar 不是同一批产物。重新打包上传。"
+  fi
+  ok "包内指纹一致（jar $JAR_DISK）"
+fi
+
+# 要部署的 jar 和容器里正在跑的是同一个 → 这次部署不会有任何变化。
+# 必须提前喊出来：部署完才发现功能没变，排查成本极高。
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "nb-backend"; then
+  JAR_RUNNING=$(docker exec nb-backend md5sum /app/app.jar 2>/dev/null | cut -d' ' -f1 || true)
+  if [ -n "$JAR_RUNNING" ] && [ "$JAR_RUNNING" = "$JAR_DISK" ]; then
+    warn "⚠️ 要部署的 jar 和容器里正在跑的**完全同一个**（md5 $JAR_DISK）"
+    warn "   这次部署不会带来任何功能变化 —— 如果你预期有新功能，说明传错了包。"
+  fi
+fi
+
 # 内存预检：同机已有其它 Java 容器时，新增 Spring Boot 有 OOM 风险
 TOTAL_MB=$(free -m | awk '/Mem:/{print $2}')
 AVAIL_MB=$(free -m | awk '/Mem:/{print $7}')
@@ -72,8 +101,21 @@ info "内存总量 ${TOTAL_MB}MB，可用 ${AVAIL_MB}MB，Swap ${SWAP_MB}MB"
 info "本次部署实测常驻约 550~660MB（backend~400 + mysql~210 + nginx~10）"
 
 if [ "$AVAIL_MB" -lt 700 ]; then
-  fail "可用内存仅 ${AVAIL_MB}MB，低于本服务实测所需的 550MB + 安全余量。
+  # ⚠️ 这道门槛只针对「首次部署」。
+  #
+  #    踩过的坑：这里原来是无条件 fail。结果服务器内存一紧张，
+  #    脚本在预检阶段就退出，**旧容器继续在跑** ——
+  #    现场看到「命令跑了、功能没变」，却完全看不出部署其实没做完，
+  #    白排查了很久（最后发现服务器跑的还是上一个版本的 jar）。
+  #
+  #    重部署时 --force-recreate 是**原地替换**：旧容器停了新的才起，
+  #    内存占用不会叠加，所以这时不该拦。
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "nb-backend"; then
+    warn "可用内存仅 ${AVAIL_MB}MB，但 nb-backend 已经在跑：本次是原地替换，不额外占用内存，继续部署。"
+  else
+    fail "可用内存仅 ${AVAIL_MB}MB，低于本服务实测所需的 550MB + 安全余量。
   请先释放内存（停掉同机其它服务）或换机器，否则必然 OOM。"
+  fi
 fi
 if [ "$AVAIL_MB" -lt 950 ]; then
   warn "可用内存 ${AVAIL_MB}MB 偏紧。能跑，但高峰期可能触及上限，靠 Swap 兜底。"
@@ -248,8 +290,55 @@ elif [ -f "$MIGRATE_SH" ]; then
 fi
 
 # ⚠️ --build 只做「组装镜像」，Dockerfile.prebuilt 里没有编译阶段，不会跑 Maven。
-docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d --build
+# ⚠️ --force-recreate 必须带：jar 变了但容器没重建，跑的还是旧代码 ——
+#    这是线上「改了功能却没生效」最常见的原因，光看日志完全看不出来。
+docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d --build --force-recreate backend
+docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d admin
 ok "容器已启动"
+
+# ⚠️ 必须核对「容器里跑的 jar」就是「刚上传的 jar」，不一致直接判部署失败。
+#
+#    踩过的坑（2026-11-01）：线上接口报 50000「系统繁忙」，一度判断成
+#    「接口存在、jar 是新的」，实际服务器跑的是**旧包** —— 里面压根没有
+#    /api/provider/service-items/manage 这个接口，Spring 找不到处理器抛
+#    NoResourceFoundException，又被兜底分支吃成了「系统繁忙」。
+#    光看「容器起来了」「返回 50000」是分辨不出来的，只能比 jar 本身。
+#
+#    所以这里不信任「容器状态正常」，直接比 md5。
+JAR_HOST="$ROOT/backend/target/neighborhood-backend.jar"
+JAR_DISK=$(md5sum "$JAR_HOST" 2>/dev/null | cut -d' ' -f1)
+JAR_CONTAINER=$(docker exec nb-backend md5sum /app/app.jar 2>/dev/null | cut -d' ' -f1 || true)
+if [ -z "$JAR_CONTAINER" ]; then
+  fail "容器里取不到 jar 的 md5 —— 容器可能没起来，或起来后又挂了。
+    docker compose -f $COMPOSE --env-file $ENV_FILE ps
+    docker compose -f $COMPOSE --env-file $ENV_FILE logs --tail 50 backend"
+fi
+if [ "$JAR_CONTAINER" != "$JAR_DISK" ]; then
+  fail "容器里的 jar 与刚上传的不一致，部署没有真正生效！
+    磁盘上的: $JAR_DISK
+    容器里的: $JAR_CONTAINER
+  常见原因：镜像用了缓存 / 旧 tar 包没解压干净。
+  处理：
+    docker compose -f $COMPOSE --env-file $ENV_FILE build --no-cache backend
+    docker compose -f $COMPOSE --env-file $ENV_FILE up -d --force-recreate backend"
+fi
+ok "容器 jar 与上传的包一致（$JAR_DISK）"
+
+# 部署包里带的构建指纹，用于事后核对「线上跑的是哪一次构建」
+if [ -f "$ROOT/deploy/BUILD-INFO.txt" ]; then
+  info "本包构建信息:"
+  sed 's/^/    /' "$ROOT/deploy/BUILD-INFO.txt"
+fi
+
+info "版本自检（确认跑的是刚上传的这版 jar）"
+for i in $(seq 1 60); do
+  ver=$(docker exec nb-backend wget -qO- http://localhost:8080/api/system/version 2>/dev/null || true)
+  case "$ver" in
+    *buildTime*) ok "版本: $ver"; break ;;
+  esac
+  [ "$i" = "60" ] && warn "取不到版本信息，稍后手动执行：docker exec nb-backend wget -qO- http://localhost:8080/api/system/version"
+  sleep 10
+done
 
 info "等待后端就绪（约 40~90 秒，首次需拉取镜像与初始化数据库）"
 for i in $(seq 1 60); do

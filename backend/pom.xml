@@ -147,6 +147,22 @@
                         </exclude>
                     </excludes>
                 </configuration>
+                <executions>
+                    <!--
+                      生成 META-INF/build-info.properties（构建时间 / git 信息），
+                      供 /api/system/version 自检接口使用。
+
+                      为什么必须有：线上「改了功能但没生效」最常见的原因就是
+                      jar 没换 / 容器没重建，而日志里看不出来。
+                      暴露一个带构建时间的接口，curl 一下就知道跑的是哪一版。
+                    -->
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

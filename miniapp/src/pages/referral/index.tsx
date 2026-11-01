@@ -313,7 +313,8 @@ function QrImage({ info }: { info: ReferralInfoVO }) {
   if (state === 'idle') {
     return (
       <View className='qr-box'>
-        <View className='qr-box__placeholder'>还没有生成二维码，点下方按钮生成</View>
+        {/* 后端在返回推广信息时已经自动生成好二维码，这里拿到的是临时状态。 */}
+        <View className='qr-box__placeholder'>正在生成二维码，请稍候…</View>
       </View>
     )
   }

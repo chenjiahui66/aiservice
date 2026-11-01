@@ -96,8 +96,8 @@ class ServicePageVisibilityTest {
         }).when(providerMapper).insert(any(Provider.class));
 
         ProviderAuthService service = new ProviderAuthService(userMapper, providerMapper, servicePageMapper,
-                referralCodeMapper, mock(ConsentService.class), mock(ServiceItemService.class),
-                passwordEncoder, jwtTokenProvider, jwtProperties, generator);
+                mock(ConsentService.class), mock(ServiceItemService.class), mock(ReferralCodeService.class),
+                passwordEncoder, jwtTokenProvider, jwtProperties);
 
         AuthDto.RegisterRequest req = new AuthDto.RegisterRequest();
         req.setPhone("13800000001");

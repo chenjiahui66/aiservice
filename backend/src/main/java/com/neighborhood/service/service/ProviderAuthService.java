@@ -7,17 +7,13 @@ import com.neighborhood.service.common.ResultCode;
 import com.neighborhood.service.dto.AuthDto;
 import com.neighborhood.service.dto.ProviderDto;
 import com.neighborhood.service.entity.Provider;
-import com.neighborhood.service.entity.ReferralCode;
 import com.neighborhood.service.entity.ServicePage;
 import com.neighborhood.service.entity.User;
 import com.neighborhood.service.enums.AuditStatus;
 import com.neighborhood.service.enums.EnabledStatus;
-import com.neighborhood.service.enums.QrMode;
 import com.neighborhood.service.mapper.ProviderMapper;
-import com.neighborhood.service.mapper.ReferralCodeMapper;
 import com.neighborhood.service.mapper.ServicePageMapper;
 import com.neighborhood.service.mapper.UserMapper;
-import com.neighborhood.service.referral.ReferralCodeGenerator;
 import com.neighborhood.service.security.JwtProperties;
 import com.neighborhood.service.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -49,13 +45,12 @@ public class ProviderAuthService {
     private final UserMapper userMapper;
     private final ProviderMapper providerMapper;
     private final ServicePageMapper servicePageMapper;
-    private final ReferralCodeMapper referralCodeMapper;
     private final ConsentService consentService;
     private final ServiceItemService serviceItemService;
+    private final ReferralCodeService referralCodeService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
-    private final ReferralCodeGenerator generator;
 
     // ------------------------------------------------------------------
     // 注册
@@ -110,7 +105,8 @@ public class ProviderAuthService {
         page.setContactPhone(req.getPhone());
         servicePageMapper.insert(page);
 
-        // 注册即分配推广码，保证「注册后立刻能拿到自己的码」
+        // 注册即分配推广码并**自动生成二维码**：服务者不该被要求自己点「生成二维码」，
+        // 注册完就该直接能扫码。失败不阻断注册 —— 码稍后进「我的推广」还会再兜底生成。
         seedReferralCode(provider.getId());
 
         // 默认勾选平台维护的全部服务类目：注册完就能接单，
@@ -134,22 +130,16 @@ public class ProviderAuthService {
     }
 
     /**
-     * 注册即分配推广码，保证「注册后立刻能拿到自己的专属码」。
-     * 失败不阻断注册：服务者后续可在小程序端重新获取。
+     * 注册即分配推广码，并顺手把二维码生成好。
+     *
+     * <p>失败不阻断注册：服务者后续可在「我的推广」里重新获取，
+     * 而且每次进那个页面都会兜底检查一次有没有可用二维码。</p>
      */
     private void seedReferralCode(Long providerId) {
         try {
-            ReferralCode code = new ReferralCode();
-            code.setProviderId(providerId);
-            code.setReferralCode(generator.generate());
-            code.setStatus(EnabledStatus.ENABLED);
-            code.setQrMode(QrMode.DEV);
-            code.setVisitCount(0);
-            code.setBookingCount(0);
-            code.setChannel("DIRECT");
-            referralCodeMapper.insert(code);
-        } catch (DuplicateKeyException e) {
-            log.warn("推广码唯一键冲突，稍后由服务者端重新获取");
+            referralCodeService.ensureQrReady(providerId);
+        } catch (Exception e) {
+            log.warn("服务者 {} 的推广码/二维码初始化失败（不影响注册）: {}", providerId, e.getMessage());
         }
     }
 

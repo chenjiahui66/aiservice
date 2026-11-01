@@ -114,6 +114,11 @@ const today = nextBookableDate();
   ok('两个推广码互不相同', codeA && codeB && codeA !== codeB, `A=${codeA} B=${codeB}`);
   ok('推广码长度为 16 且为随机串', /^[0-9A-Za-z]{16}$/.test(codeA || ''), `实际=${codeA}`);
   ok('当前为开发降级模式且有明确提示', refA.json?.data?.qrMode === 'DEV' && !!refA.json?.data?.qrNotice);
+  // 二维码必须自动生成：服务者不该被要求自己点「生成二维码」
+  ok('注册后自动就有二维码（无需手动生成）', !!refA.json?.data?.qrImageUrl,
+    `qrImageUrl=${refA.json?.data?.qrImageUrl}`);
+  ok('降级码不会被误标成真实小程序码', refA.json?.data?.qrMode === 'DEV',
+    `qrMode=${refA.json?.data?.qrMode}`);
 
   section('6. 开启主页');
   await api('PUT', '/api/provider/page', {

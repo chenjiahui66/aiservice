@@ -272,8 +272,8 @@ class ProviderOnboardingTest {
         }).when(providerMapper).insert(any(Provider.class));
 
         return new ProviderAuthService(userMapper, providerMapper, servicePageMapper,
-                mock(ReferralCodeMapper.class), mock(ConsentService.class), mock(ServiceItemService.class),
-                passwordEncoder, jwtTokenProvider, jwtProperties, generator);
+                mock(ConsentService.class), mock(ServiceItemService.class), mock(ReferralCodeService.class),
+                passwordEncoder, jwtTokenProvider, jwtProperties);
     }
 
     private ProviderMapper providerMapperWithPhone(String phone) {

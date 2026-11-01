@@ -29,8 +29,79 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * 直接读 jar（zip）里的 .class 字节，检查关键标记是否存在。
+ *
+ * <p>用途：确认「打出来的这个包」真的带着新功能的接口。
+ * 这不是锦上添花 —— 线上事故的根因就是传了个旧包，而旧包的表现是
+ * 接口 404 被报成「系统繁忙」，靠看返回码根本分辨不出来。</p>
+ */
+function verifyJarEntries(jarPath, markers) {
+  const buf = fs.readFileSync(jarPath);
+  const missing = [];
+
+  // 定位 zip 中央目录
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0 && i > buf.length - 66000; i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return { ok: false, missing: ['jar 不是有效的 zip'], buildTime: '' };
+
+  const count = buf.readUInt16LE(eocd + 10);
+  let p = buf.readUInt32LE(eocd + 16);
+  const entries = new Map();
+  for (let i = 0; i < count; i++) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) break;
+    const method = buf.readUInt16LE(p + 10);
+    const compSize = buf.readUInt32LE(p + 20);
+    const nameLen = buf.readUInt16LE(p + 28);
+    const extraLen = buf.readUInt16LE(p + 30);
+    const commentLen = buf.readUInt16LE(p + 32);
+    const localOffset = buf.readUInt32LE(p + 42);
+    entries.set(buf.toString('utf8', p + 46, p + 46 + nameLen), { method, compSize, localOffset });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+
+  const read = (name) => {
+    const e = entries.get(name);
+    if (!e) return null;
+    const lo = e.localOffset;
+    const dataStart = lo + 30 + buf.readUInt16LE(lo + 26) + buf.readUInt16LE(lo + 28);
+    const raw = buf.subarray(dataStart, dataStart + e.compSize);
+    try {
+      return e.method === 0 ? raw : zlib.inflateRawSync(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  for (const [entry, needles] of markers) {
+    const data = read(entry);
+    if (!data) {
+      missing.push(`${entry}（类不存在）`);
+      continue;
+    }
+    const text = data.toString('latin1');
+    for (const n of needles) {
+      if (!text.includes(n)) missing.push(`${entry.split('/').pop()} → ${n}`);
+    }
+  }
+
+  // 从 jar 里的 build-info.properties 取构建时间
+  let buildTime = '';
+  const bi = read('META-INF/build-info.properties');
+  if (bi) {
+    const m = bi.toString('utf8').match(/buildTime=([^\r\n]+)/);
+    if (m) buildTime = m[1];
+  }
+
+  return { ok: missing.length === 0, missing, buildTime };
+}
 
 // 仓库根 = 本脚本所在目录的上一级
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -103,6 +174,47 @@ function copyFile(src, dest) {
 // 后端：只给预构建 jar + Dockerfile，不需要源码
 copyFile(`${ROOT}/backend/target/neighborhood-backend.jar`, `${STAGE}/backend/target/neighborhood-backend.jar`);
 copyFile(`${ROOT}/backend/Dockerfile.prebuilt`, `${STAGE}/backend/Dockerfile.prebuilt`);
+
+// ── 包内 jar 自检 ────────────────────────────────────────────────────────
+// 教训（2026-11-01 线上事故）：服务器上跑的是**旧包**，里面根本没有
+//   /api/provider/service-items/manage 这个接口。Spring 找不到处理器会退到
+//   静态资源处理器，抛 NoResourceFoundException，被兜底分支报成
+//   {"code":50000,"message":"系统繁忙"} —— 现场误以为「返回 50000 而不是 404，
+//   说明接口存在、jar 是新的」，于是往数据库和数据上查了很久，
+//   真正原因只是 jar 没更新。
+//
+// 所以打包时必须**直接验 jar 里的字节**，确认关键接口确实在包里。
+// 靠推断（看返回码、看日志）已经证明是不可靠的。
+const jarMarkers = [
+  ['BOOT-INF/classes/com/neighborhood/service/controller/ProviderController.class', ['service-items/manage']],
+  ['BOOT-INF/classes/com/neighborhood/service/service/ServiceItemService.class', ['listManageView']],
+  ['BOOT-INF/classes/com/neighborhood/service/common/GlobalExceptionHandler.class', ['handleNoResource']],
+  ['BOOT-INF/classes/com/neighborhood/service/controller/SystemController.class', ['/api/system', '/version']],
+];
+const jarCheck = verifyJarEntries(`${ROOT}/backend/target/neighborhood-backend.jar`, jarMarkers);
+if (!jarCheck.ok) {
+  console.error('  [失败] jar 里缺少关键内容，部署上去接口会 404：');
+  for (const m of jarCheck.missing) console.error(`    - ${m}`);
+  console.error('  重新执行 mvn -DskipTests package 再打包。');
+  process.exit(1);
+}
+console.log('  jar 自检: 关键接口均在包内');
+
+// 顺带写一份指纹，部署脚本用它核对「服务器上跑的到底是哪个包」
+const jarBytes = fs.readFileSync(`${ROOT}/backend/target/neighborhood-backend.jar`);
+const jarMd5 = crypto.createHash('md5').update(jarBytes).digest('hex');
+fs.mkdirSync(`${STAGE}/deploy`, { recursive: true });
+fs.writeFileSync(
+  `${STAGE}/deploy/BUILD-INFO.txt`,
+  [
+    '# 本次部署包的构建指纹（部署脚本据此核对容器里跑的 jar 是否就是这一个）',
+    `buildTime=${jarCheck.buildTime}`,
+    `jarMd5=${jarMd5}`,
+    `jarSize=${jarBytes.length}`,
+    '',
+  ].join('\n'),
+  'utf8',
+);
 
 const webFiles = copyDir(`${ROOT}/admin-web/dist`, `${STAGE}/admin-web/dist`);
 console.log(`  admin-web/dist   : ${webFiles} 个文件`);
@@ -182,6 +294,9 @@ const required = [
   'sql/schema.sql',
   'sql/seed.sql',
   'deploy/migrate.sh',
+  'deploy/diagnose.sh',
+  'deploy/diagnose-50000.sh',
+  'deploy/BUILD-INFO.txt',
 ];
 // ⚠️ migrations 目录下的每个 .sql 都要在包里。
 //    漏掉 = 服务器上迁移无从执行 = 新表建不出来 = 功能上线即 500。
