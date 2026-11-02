@@ -9,9 +9,11 @@ import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { getQueryParam, makePhoneCall } from '@/platform'
 import { getBookableRange, todayStr, toDateTimeStr, fromDateTimeStr } from '@/utils/date'
 import type { CustomerDetailVO, OrderVO } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /** 客户详情：资料 + 复购计划 + 历史订单 */
 export default function CustomerDetailPage() {
+  usePageShare()
   useAuthGuard()
   const customerId = Number(getQueryParam('id') || 0)
   const [editing, setEditing] = useState(false)

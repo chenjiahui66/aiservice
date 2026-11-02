@@ -7,6 +7,7 @@ import { usePageData, toMessage } from '@/hooks/usePageData'
 import { getLaunchReferralCode, getQueryParam, makePhoneCall } from '@/platform'
 import { BizCode } from '@/types/api'
 import type { ProviderHomeVO, ServiceItem } from '@/types/domain'
+import { DEFAULT_SHARE_TITLE, usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 客户自己解决不了、点「重新加载」也不会变的业务错误。
@@ -43,6 +44,21 @@ export default function ProviderHomePage() {
 
   const { data, loading, error, errorCode, reload } = usePageData<ProviderHomeVO>(fetcher, [referralCode])
   const blocked = errorCode != null ? BLOCKED_DESC[errorCode] : undefined
+
+  // 分享出去的必须是「当前这个服务者的主页」，不能是分享者自己的主页。
+  //
+  // 所以推广码一律取本页的 referralCode，绝不能用 hook 的默认策略
+  //（默认策略带的是「分享者自己」的推广码）—— 那样订单就记到别人头上了。
+  // 客户主页页正是分享到朋友圈唯一真正能裂变的地方，这里必须准确。
+  const shareTitle = data ? `${data.displayName}的服务主页` : DEFAULT_SHARE_TITLE
+  usePageShare({
+    title: shareTitle,
+    path: referralCode
+      ? `/pages/provider/index?referralCode=${encodeURIComponent(referralCode)}`
+      : '/pages/provider/index',
+    timelineTitle: shareTitle,
+    timelineQuery: referralCode ? `referralCode=${encodeURIComponent(referralCode)}` : ''
+  })
 
   const goBooking = (item: ServiceItem) => {
     Taro.navigateTo({

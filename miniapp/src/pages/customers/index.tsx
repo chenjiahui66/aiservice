@@ -6,11 +6,13 @@ import { fetchCustomers } from '@/api/provider'
 import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import type { CustomerVO } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 const PAGE_SIZE = 20
 
 /** 我的客户：搜索 + 分页，点击进入客户详情 */
 export default function CustomersPage() {
+  usePageShare()
   useAuthGuard()
   const [keyword, setKeyword] = useState('')
   const [submitted, setSubmitted] = useState('')

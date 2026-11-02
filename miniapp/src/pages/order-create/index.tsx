@@ -14,6 +14,7 @@ import {
   validateValues
 } from '@/utils/form-config'
 import type { ManualOrderRequest, ServiceItem } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 手动记单（线下成交补录）。
@@ -22,6 +23,7 @@ import type { ManualOrderRequest, ServiceItem } from '@/types/domain'
  * 而不是在这里写死「代扔垃圾」这类具体字段。
  */
 export default function OrderCreatePage() {
+  usePageShare()
   useAuthGuard()
   const [activeItemId, setActiveItemId] = useState<number | null>(null)
   const [values, setValues] = useState<Record<string, string | number>>({})

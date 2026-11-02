@@ -8,6 +8,7 @@ import { toMessage } from '@/hooks/usePageData'
 import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { POLICY_VERSION } from '@/constants/policy'
 import type { ComplaintType, FeedbackResult } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /** 反馈类型，取值与后端 ComplaintType 枚举严格一致 */
 const TYPES: Array<{ value: ComplaintType; label: string; hint: string }> = [
@@ -24,6 +25,7 @@ const TYPES: Array<{ value: ComplaintType; label: string; hint: string }> = [
  * - 不传 providerId，服务者身份由后端从 token 取，客户身份由 referralCode 反查
  */
 export default function FeedbackPage() {
+  usePageShare()
   const displayName = useAuthStore((s) => s.displayName)
   const referralCode = getQueryParam('referralCode')
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
 import { clearToken, getToken, setToken } from '@/utils/token'
+import { clearCachedReferralCode } from '@/utils/referral-code'
 import type { AuditStatus } from '@/types/domain'
 
 interface AuthState {
@@ -115,6 +116,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: () => {
     clearToken()
+    // 推广码缓存也一起清掉：换了账号还带着上一个人的码分享出去，
+    // 朋友点进来的订单会记到别人头上。
+    clearCachedReferralCode()
     try {
       Taro.removeStorageSync(PROFILE_KEY)
     } catch {

@@ -6,6 +6,7 @@ import { fetchMyPage, updateMyPage } from '@/api/provider'
 import { usePageData, toMessage } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import type { ProviderPageConfig } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 type FormState = {
   displayName: string
@@ -33,6 +34,7 @@ const EMPTY: FormState = {
 
 /** 个人服务主页编辑 */
 export default function PageEditPage() {
+  usePageShare()
   useAuthGuard()
   const [form, setForm] = useState<FormState>(EMPTY)
   const [saving, setSaving] = useState(false)

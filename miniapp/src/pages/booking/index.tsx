@@ -15,6 +15,7 @@ import {
   validateValues
 } from '@/utils/form-config'
 import type { BookingRequest, BookingResult, ProviderHomeVO, ServiceItem } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 预约提交页（客户扫码路径，独立页面，不需要登录）。
@@ -24,6 +25,7 @@ import type { BookingRequest, BookingResult, ProviderHomeVO, ServiceItem } from 
  * 提交时 **只传 referralCode**，不传 providerId：订单归属由后端反查裁决。
  */
 export default function BookingPage() {
+  usePageShare()
   const referralCode = getQueryParam('referralCode') || ''
   const preselectedId = Number(getQueryParam('serviceItemId') || 0)
 

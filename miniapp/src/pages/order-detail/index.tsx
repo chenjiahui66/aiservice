@@ -17,6 +17,7 @@ import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { getQueryParam } from '@/platform'
 import { makePhoneCall } from '@/platform'
 import type { OrderVO } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 订单详情。
@@ -24,6 +25,7 @@ import type { OrderVO } from '@/types/domain'
  * 非法流转由后端裁决（42003），这里只呈现当前合法动作。
  */
 export default function OrderDetailPage() {
+  usePageShare()
   useAuthGuard()
   const orderId = Number(getQueryParam('id') || 0)
   const [acting, setActing] = useState('')

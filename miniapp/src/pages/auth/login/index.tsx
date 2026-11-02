@@ -6,9 +6,11 @@ import { useAuthStore } from '@/store/auth'
 import { toMessage } from '@/hooks/usePageData'
 import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { POLICY_VERSION } from '@/constants/policy'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /** 服务者登录 */
 export default function LoginPage() {
+  usePageShare()
   const signIn = useAuthStore((s) => s.signIn)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')

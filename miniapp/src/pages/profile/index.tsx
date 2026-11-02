@@ -8,12 +8,14 @@ import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { useAuthStore } from '@/store/auth'
 import type { ProviderProfile } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 服务者资料：重点展示审核状态与驳回原因，
  * 让服务者清楚知道「现在能不能对外接单」。
  */
 export default function ProfilePage() {
+  usePageShare()
   useAuthGuard()
   const setAuditStatus = useAuthStore((s) => s.setAuditStatus)
   // 驳回原因只在登录/注册响应里下发，profile 接口不返回，因此从登录态读取

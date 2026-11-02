@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Image, Button, Video } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import PageState from '@/components/PageState'
 import { fetchReferral, fetchReferralStats, fetchMyPage, regenerateQr } from '@/api/provider'
 import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
-import { absoluteUrl, copyToClipboard, isWeapp, saveImageToAlbum } from '@/platform'
+import { absoluteUrl, copyToClipboard, getQueryParam, isWeapp, saveImageToAlbum } from '@/platform'
 import { getToken } from '@/utils/token'
+import { cacheReferralCode, getCachedReferralCode } from '@/utils/referral-code'
+import { useAuthStore } from '@/store/auth'
 import { PROMO_VIDEO_DESC, PROMO_VIDEO_TITLE } from '@/constants/promo-video'
 import type { ReferralInfoVO, ReferralStats } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 我的推广。
@@ -17,7 +20,31 @@ import type { ReferralInfoVO, ReferralStats } from '@/types/domain'
  * 必须把后端下发的 qrNotice 原样展示出来，不能装作是真的。
  */
 export default function ReferralPage() {
-  useAuthGuard()
+  const token = useAuthStore((s) => s.token)
+  const hydrated = useAuthStore((s) => s.hydrated)
+  /**
+   * 带推广码进来的（多半是朋友圈/聊天分享落地）当前页地址。
+   * 为空 = 服务者自己从工作台点进来的。
+   */
+  const incomingCode = useMemo(() => getQueryParam('referralCode') || '', [])
+
+  // 带推广码进来的多半是**客户**，不是服务者本人。
+  // 这时候不能把人拦到登录页 —— 客户手里没有账号，登录页对他毫无意义。
+  // 所以这里只在「没有推广码」时才启用登录守卫。
+  useAuthGuard(!incomingCode)
+
+  // 客户 → 直接带去服务主页。
+  //
+  // 为什么需要：微信的「分享到朋友圈」只能分享**当前页面**，不能改成主页路径。
+  // 服务者从推广页分享到朋友圈，落地就是这个推广页。客户点进来看到登录页等于没分享成功，
+  // 所以这里把带推广码的客户再送一程到服务主页。
+  useEffect(() => {
+    if (!hydrated || token || !incomingCode) return
+    Taro.redirectTo({
+      url: `/pages/provider/index?referralCode=${encodeURIComponent(incomingCode)}`
+    })
+  }, [hydrated, token, incomingCode])
+
   const [tab, setTab] = useState<'referral' | 'stats'>('referral')
 
   const fetcher = useCallback(async () => {
@@ -31,9 +58,21 @@ export default function ReferralPage() {
         .then((p) => p.enabled)
         .catch(() => true)
     ])
+    // 推广码缓存下来：分享时微信的回调是同步的，拿不到推广码就分享不出带码的链接。
+    cacheReferralCode(info.referralCode)
     return { info, stats, pageEnabled }
   }, [])
   const { data, loading, error, reload } = usePageData(fetcher, [], { refreshOnShow: true })
+
+  // 分享出去的落地页 = 我自己的服务主页 + 我的推广码。
+  // 推广码已缓存，直接拼进 path（同步可用）；
+  // 万一还没缓存上，就不传 path，交给 hook 走「先兜底、再用 promise 补齐」那条路。
+  const cachedCode = getCachedReferralCode()
+  usePageShare({
+    path: cachedCode
+      ? `/pages/provider/index?referralCode=${encodeURIComponent(cachedCode)}`
+      : undefined
+  })
 
   return (
     <View className='page'>
@@ -178,6 +217,20 @@ function ReferralPanel({
             复制
           </Text>
         </View>
+
+        {/* 直接给一个「分享给朋友」按钮。
+            右上角菜单里的转发入口太隐蔽，服务者基本发现不了；
+            而这正是这个页面最该被按的按钮 —— 分享出去的链接带推广码，
+            朋友点进来订单直接进他的台账。 */}
+        <View style={{ marginTop: '20rpx' }}>
+          <Button className='btn btn--ghost btn--block' openType='share'>
+            分享我的主页给朋友
+          </Button>
+          <Text className='muted' style={{ display: 'block', marginTop: '12rpx', textAlign: 'center' }}>
+            分享出去的链接带着你的推广码，朋友预约后订单直接进你的台账
+          </Text>
+        </View>
+
         <View style={{ marginTop: '20rpx' }}>
           <Text className='muted'>推广状态：</Text>
           <Text className='muted'>{info.status === 'ENABLED' ? '已启用' : info.status}</Text>

@@ -7,6 +7,7 @@ import { fetchOrders } from '@/api/provider'
 import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import type { OrderStatus, OrderVO } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 const PAGE_SIZE = 20
 
@@ -22,6 +23,7 @@ const STATUS_TABS: Array<{ key: OrderStatus | ''; label: string }> = [
 
 /** 全部订单：按状态筛选 + 关键字搜索 + 上拉分页 */
 export default function OrdersPage() {
+  usePageShare()
   useAuthGuard()
   const [status, setStatus] = useState<OrderStatus | ''>('')
   const [keyword, setKeyword] = useState('')

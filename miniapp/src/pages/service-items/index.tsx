@@ -6,6 +6,7 @@ import { fetchMyServiceItems, selectServiceItem, unselectServiceItem } from '@/a
 import { usePageData, toMessage } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import type { MyServiceItem } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 我的服务类目。
@@ -15,6 +16,7 @@ import type { MyServiceItem } from '@/types/domain'
  * 不提供的可以取消，取消后随时能加回来（记录不会被删掉）。
  */
 export default function ServiceItemsPage() {
+  usePageShare()
   useAuthGuard()
 
   const fetcher = useCallback(() => fetchMyServiceItems(), [])

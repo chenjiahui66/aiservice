@@ -5,9 +5,11 @@ import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { isWeapp } from '@/platform'
 import { BASE_URL } from '@/utils/request'
 import { redirectToLogin } from '@/utils/auth-redirect'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /** 我的账号与设置 */
 export default function SettingsPage() {
+  usePageShare()
   useAuthGuard()
   const displayName = useAuthStore((s) => s.displayName)
   const username = useAuthStore((s) => s.username)

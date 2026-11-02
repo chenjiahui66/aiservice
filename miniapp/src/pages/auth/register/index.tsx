@@ -6,9 +6,11 @@ import { useAuthStore } from '@/store/auth'
 import { toMessage } from '@/hooks/usePageData'
 import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { POLICY_VERSION } from '@/constants/policy'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /** 服务者注册：注册后默认「待审核」，需平台审核通过才能对外展示主页 */
 export default function RegisterPage() {
+  usePageShare()
   const signIn = useAuthStore((s) => s.signIn)
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')

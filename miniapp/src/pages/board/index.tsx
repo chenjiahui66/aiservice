@@ -8,12 +8,14 @@ import { usePageData } from '@/hooks/usePageData'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
 import { addDays, todayStr, weekdayLabel } from '@/utils/date'
 import type { BoardVO, OrderVO } from '@/types/domain'
+import { usePageShare } from '@/hooks/usePageShare'
 
 /**
  * 今日台账。
  * 突出「预约时间 / 地址 / 服务内容 / 状态」，待处理事项容易被发现但不用刺眼颜色。
  */
 export default function BoardPage() {
+  usePageShare()
   useAuthGuard()
   const [date, setDate] = useState(todayStr())
 
